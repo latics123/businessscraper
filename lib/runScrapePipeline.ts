@@ -55,8 +55,10 @@ export async function runScrapePipeline({
     // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
       try {
-        const filePath = path.join(process.cwd(), "public", "enrich-area-codes.xlsx")
-        const workbook = XLSX.readFile(filePath)
+const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ""}/enrich-area-codes.xlsx`)
+if (!response.ok) throw new Error(`Failed to fetch enrich file: ${response.statusText}`)
+const arrayBuffer = await response.arrayBuffer()
+const workbook = XLSX.read(arrayBuffer, { type: "array" })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const areaCodes = XLSX.utils.sheet_to_json(sheet)
 
