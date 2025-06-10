@@ -26,7 +26,8 @@ export function downloadJsonAsFile(data: any, filename: string) {
 }
 
 // Enrich Area Codes
-let enrichAreaCodeMap: Record<string, string> = {}
+export let enrichAreaCodeMap: Record<string, string> = {}
+
 export async function loadEnrichAreaCodesFromURL(url: string = "/enrich-area-codes.xlsx"): Promise<void> {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`Failed to load enrich file: ${response.statusText}`)
@@ -41,8 +42,8 @@ export async function loadEnrichAreaCodesFromURL(url: string = "/enrich-area-cod
     const areaCode = String(row["telephone area code"] || "").trim()
     if (postcode && areaCode) enrichAreaCodeMap[postcode] = areaCode
   }
-  console.log("✅ Enrich map loaded with", Object.keys(enrichAreaCodeMap).length, "entries")
 }
+
 
 // XLSX Export
 export function convertJsonToCsv(jsonData: any[], filename: string) {
