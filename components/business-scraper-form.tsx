@@ -309,6 +309,12 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         phone_filter: formData.phoneFilter,
         start_now: true,
         one_time: true,
+
+          instantly_api_key: formData.instantlyApiKey,
+  instantly_list_id: formData.instantlyListId,
+  instantly_campaign_id: formData.instantlyCampaignId,
+  connect_cold_email: formData.connectColdEmail,
+
       })
     }
 
