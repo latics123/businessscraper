@@ -70,15 +70,25 @@ const workbook = XLSX.read(arrayBuffer, { type: "array" })
             areaCodeMap.set(prefix.trim().toUpperCase(), code.toString().trim())
           }
         })
-console.log("🔍 Loaded areaCodeMap with keys:", Array.from(areaCodeMap.keys()).slice(0, 10))
+console.log("🔍 Total postal prefixes loaded:", areaCodeMap.size)
+console.log("📬 First 50 keys:", Array.from(areaCodeMap.keys()).slice(0, 50))
 
         const getPostalPrefix = (postal: string) =>
           (postal || "").split(" ")[0].trim().toUpperCase()
 
-        filteredData = filteredData.map(row => ({
-          ...row,
-          ["enrich area codes"]: areaCodeMap.get(getPostalPrefix(row.postal_code)) || "",
-        }))
+filteredData = filteredData.map(row => {
+  const prefix = getPostalPrefix(row.postal_code)
+  const code = areaCodeMap.get(prefix) || ""
+  if (!code) {
+    console.warn(`🚫 No area code match for postal: "${row.postal_code}" (prefix: "${prefix}")`)
+  } else {
+    console.log(`✅ Found area code "${code}" for postal prefix "${prefix}"`)
+  }
+  return {
+    ...row,
+    ["enrich area codes"]: code,
+  }
+})
       } catch (err) {
         console.error("❌ Failed to enrich area codes:", err)
         toast({
