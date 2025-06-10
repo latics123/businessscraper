@@ -1,5 +1,6 @@
 
 import { fetchBusinessData } from "@/actions/targetron"
+import { supabase } from "@/lib/supabase"
 
 export async function runScrapePipeline({
   formData,
