@@ -5,7 +5,6 @@ import { convertAndVerifyJson, downloadJsonAsFile, convertJsonToCsv } from "@/li
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
 import * as XLSX from "xlsx"
-import { loadEnrichAreaCodesFromURL, enrichAreaCodeMap } from "@/lib/utils"
 
 export async function runScrapePipeline({
   formData,
@@ -55,7 +54,7 @@ export async function runScrapePipeline({
     // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
       try {
-const res = await fetch("/enrich-area-codes.xlsx")
+        const res = await fetch("public/enrich-area-codes.xlsx")
         const arrayBuffer = await res.arrayBuffer()
         const workbook = XLSX.read(arrayBuffer, { type: "array" })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
@@ -72,23 +71,19 @@ const res = await fetch("/enrich-area-codes.xlsx")
 
 const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
 
-if (formData.enrichWithAreaCodes) {
-  try {
-    await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx") // loads into global map
-    filteredData = filteredData.map(row => ({
-      ...row,
-      ["enrich area codes"]: enrichAreaCodeMap[getPostalPrefix(row.postal_code)] || "",
-    }))
-  } catch (err) {
-    console.error("❌ Failed to enrich area codes:", err)
-    toast({
-      title: "Enrichment failed",
-      description: "Could not enrich area codes from XLSX file.",
-      variant: "destructive",
-    })
-  }
-}
-
+        filteredData = filteredData.map(row => ({
+          ...row,
+          ["enrich area codes"]: areaCodeMap.get(getPostalPrefix(row.postal_code)) || "",
+        }))
+      } catch (err) {
+        console.error("❌ Failed to enrich area codes:", err)
+        toast({
+          title: "Enrichment failed",
+          description: "Could not enrich area codes from XLSX file.",
+          variant: "destructive",
+        })
+      }
+    }
 
     setBusinessData(filteredData)
 
