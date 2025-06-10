@@ -52,46 +52,46 @@ export async function runScrapePipeline({
       : data
 
     // ✅ Enrich with area codes if enabled
-    if (formData.enrichWithAreaCodes) {
-      try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ""}/enrich-area-codes.xlsx`)
-        if (!response.ok) throw new Error(`Failed to fetch enrich file: ${response.statusText}`)
-        const arrayBuffer = await response.arrayBuffer()
-        const workbook = XLSX.read(arrayBuffer, { type: "array" })
-        const sheet = workbook.Sheets[workbook.SheetNames[0]]
-        const areaCodes = XLSX.utils.sheet_to_json(sheet)
+if (formData.enrichWithAreaCodes) {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ""}/enrich-area-codes.xlsx`)
+    if (!response.ok) throw new Error(`Failed to fetch enrich file: ${response.statusText}`)
+    const arrayBuffer = await response.arrayBuffer()
+    const workbook = XLSX.read(arrayBuffer, { type: "array" })
+    const sheet = workbook.Sheets[workbook.SheetNames[0]]
+    const areaCodes = XLSX.utils.sheet_to_json(sheet)
 
-        const areaCodeMap = new Map()
-        areaCodes.forEach((row: any) => {
-          const prefix = (row["postcode"] || "").trim().toUpperCase()
-          const code = (row["telephone area code"] || "").trim()
-          if (prefix && code) {
-            areaCodeMap.set(prefix, code)
-          }
-        })
-
-        const getPostalPrefix = (postal: string) =>
-          (postal || "").split(" ")[0].trim().toUpperCase()
-
-        filteredData = filteredData.map(row => {
-          const prefix = getPostalPrefix(row.postal_code)
-          const code = areaCodeMap.get(prefix) || ""
-          return {
-            ...row,
-            ["enrich area codes"]: code,
-          }
-        })
-
-        console.log("✅ Enrichment complete. Area codes added for", filteredData.length, "rows.")
-      } catch (err) {
-        console.error("❌ Failed to enrich area codes:", err)
-        toast({
-          title: "Enrichment failed",
-          description: "Could not enrich area codes from XLSX file.",
-          variant: "destructive",
-        })
+    const areaCodeMap = new Map()
+    areaCodes.forEach((row: any) => {
+      const rawPostcode = (row["postcode"] || "").trim().toUpperCase()
+      const code = (row["telephone area code"] || "").toString().trim()
+      if (rawPostcode && code) {
+        areaCodeMap.set(rawPostcode, code)
       }
-    }
+    })
+
+    const getPostalPrefix = (postal: string) =>
+      (postal || "").split(" ")[0].trim().toUpperCase()
+
+    filteredData = filteredData.map(row => {
+      const prefix = getPostalPrefix(row.postal_code)
+      const code = areaCodeMap.get(prefix) || ""
+      return {
+        ...row,
+        ["enrich area codes"]: code,
+      }
+    })
+
+    console.log("✅ Enrichment complete. Area codes added for", filteredData.length, "rows.")
+  } catch (err) {
+    console.error("❌ Failed to enrich area codes:", err)
+    toast({
+      title: "Enrichment failed",
+      description: "Could not enrich area codes from XLSX file.",
+      variant: "destructive",
+    })
+  }
+}
 
     setBusinessData(filteredData)
 
