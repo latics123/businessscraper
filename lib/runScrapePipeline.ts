@@ -8,7 +8,7 @@ import { areaCodeMap } from "@/lib/area-code-map"
 
 export async function runScrapePipeline({
   formData,
-  downloadFiles = true,
+  downloadFiles = false,
   uploadToInstantlyEnabled = true,
   sendToTelegram = true,
   setBusinessData,

@@ -1807,7 +1807,7 @@ export const areaCodeMap: Record<string, string> = {
   "NR7": "01603 Norwich",
   "NR8": "01603 Norwich",
   "NR9": "01603 Norwich",
-  "NW1": "020 London",
+  "NW1 6SE": "020 London",
   "NW10": "020 London",
   "NW11": "020 London",
   "NW2": "020 London",
