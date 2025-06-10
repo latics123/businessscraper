@@ -1,15 +1,12 @@
 import { fetchBusinessData } from "@/actions/targetron"
 import { supabase } from "@/lib/supabase"
 import { verifyEmails } from "@/actions/million-verifier"
-import {
-  convertAndVerifyJson,
-  downloadJsonAsFile,
-  convertJsonToCsv,
-  loadEnrichAreaCodesFromURL
-} from "@/lib/utils"
+import { convertAndVerifyJson, downloadJsonAsFile, convertJsonToCsv } from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
 import * as XLSX from "xlsx"
+import * as fs from "fs"
+import * as path from "path"
 
 export async function runScrapePipeline({
   formData,
@@ -56,38 +53,47 @@ export async function runScrapePipeline({
       ? data.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
       : data
 
-    // ✅ Enrich with area codes if getPostalPrefix
+    // ✅ Enrich with area codes using fs + XLSX
     if (formData.enrichWithAreaCodes) {
       try {
-const getPostalPrefix = (postal: string) =>
-  (postal || "").split(" ")[0].trim().toUpperCase()
+        const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
+        const getFallbackPrefix = (postal: string) => (postal || "").replace(/\s/g, "").slice(0, 3).toUpperCase()
 
-const getFallbackPrefix = (postal: string) =>
-  (postal || "").replace(/\s/g, "").slice(0, 3).toUpperCase()
+        const filePath = path.resolve(process.cwd(), "public/enrich-area-codes.xlsx")
+        const arrayBuffer = fs.readFileSync(filePath)
+        const workbook = XLSX.read(arrayBuffer, { type: "buffer" })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const rows: any[] = XLSX.utils.sheet_to_json(sheet)
 
-const areaCodeMap = await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
+        const areaCodeMap: Record<string, string> = {}
+        rows.forEach(row => {
+          const rawPostcode = String(row["postcode"] || "").split(" ")[0].trim().toUpperCase()
+          const code = String(row["telephone area code"] || "").trim()
+          if (rawPostcode && code) {
+            areaCodeMap[rawPostcode] = code
+          }
+        })
 
-filteredData = filteredData.map(row => {
-  const postalCode = row.postal_code
-  const prefix = getPostalPrefix(postalCode)
-  let areaCode = areaCodeMap[prefix]
+        filteredData = filteredData.map(row => {
+          const postalCode = row.postal_code
+          const prefix = getPostalPrefix(postalCode)
+          let areaCode = areaCodeMap[prefix]
 
-  // Fallback: try first 3 characters with no spaces
-  if (!areaCode) {
-    const fallbackPrefix = getFallbackPrefix(postalCode)
-    areaCode = areaCodeMap[fallbackPrefix]
-    if (areaCode) {
-      console.warn(`🔁 Used fallback for ${postalCode}: matched ${fallbackPrefix} → ${areaCode}`)
-    } else {
-      console.warn(`❌ No area code found for ${postalCode} (prefix: ${prefix}, fallback: ${fallbackPrefix})`)
-    }
-  }
+          if (!areaCode) {
+            const fallbackPrefix = getFallbackPrefix(postalCode)
+            areaCode = areaCodeMap[fallbackPrefix]
+            if (areaCode) {
+              console.warn(`🔁 Used fallback for ${postalCode}: matched ${fallbackPrefix} → ${areaCode}`)
+            } else {
+              console.warn(`❌ No area code found for ${postalCode} (prefix: ${prefix}, fallback: ${fallbackPrefix})`)
+            }
+          }
 
-  return {
-    ...row,
-    ["enrich area codes"]: areaCode || "",
-  }
-})
+          return {
+            ...row,
+            ["enrich area codes"]: areaCode || "",
+          }
+        })
       } catch (err) {
         console.error("❌ Failed to enrich area codes:", err)
         toast({
