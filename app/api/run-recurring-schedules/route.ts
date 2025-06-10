@@ -5,6 +5,7 @@ import { DateTime } from "luxon"
 import axios from "axios"
 import * as XLSX from "xlsx"
 import { createClient } from "@supabase/supabase-js"
+import { InstantlyAPI } from "@/lib/instantly" // Make sure this exists and works server-side
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -89,8 +90,6 @@ async function runRecurringScrapes() {
   const slackBotToken = settings.slackBotToken
   const slackChannelId = settings.slackChannelId
 
-  console.log("🧪 Slack settings:", { slackBotToken, slackChannelId })
-
   const dueSchedules = schedules?.filter(
     (s) =>
       s.recurring_days?.includes(currentDay) &&
@@ -115,13 +114,6 @@ async function runRecurringScrapes() {
         enrichWithAreaCodes: schedule.enrich_with_area_codes ?? false,
         addedFrom: settings.fromDate || now.toISODate(),
         addedTo: settings.toDate || now.toISODate(),
-
-        // ✅ These are now passed from schedule
-        connectColdEmail: schedule.connect_cold_email ?? false,
-        instantlyApiKey: schedule.instantly_api_key ?? "",
-        instantlyListId: schedule.instantly_list_id ?? "",
-        instantlyCampaignId: schedule.instantly_campaign_id ?? "",
-        addtocampaign: schedule.add_to_campaign ?? false,
       })
 
       if (!businessData?.length) {
@@ -130,6 +122,7 @@ async function runRecurringScrapes() {
       }
 
       const rows: any[] = []
+      const leadsForInstantly: any[] = []
       const emailKeys = [
         ["email_1", "email_1_title", "email_1_first_name", "email_1_last_name"],
         ["email_2", "email_2_title", "email_2_first_name", "email_2_last_name"],
@@ -145,23 +138,32 @@ async function runRecurringScrapes() {
             await new Promise((r) => setTimeout(r, 300))
 
             const row: any = {}
-            for (const key of VERIFIED_HEADERS) {
-              row[key] = entry[key] ?? ""
-            }
+            for (const key of VERIFIED_HEADERS) row[key] = entry[key] ?? ""
             row.email = entry[e]
             row.email_title = entry[title] ?? ""
             row.email_first_name = entry[first] ?? ""
             row.email_last_name = entry[last] ?? ""
             row.is_email_valid = isValid ? "TRUE" : "FALSE"
             rows.push(row)
+
+            // ✅ Push to Instantly if valid and enabled
+            if (isValid && schedule.connect_cold_email) {
+              leadsForInstantly.push({
+                email: entry[e],
+                company_name: entry.display_name || "",
+                phone: entry.phone || "",
+                website: entry.site || "",
+                personalization: "Hello there, I wanted to connect.",
+                first_name: entry[first] || "",
+                last_name: entry[last] || "",
+              })
+            }
           }
         }
 
         if (!hasEmail) {
           const row: any = {}
-          for (const key of VERIFIED_HEADERS) {
-            row[key] = entry[key] ?? ""
-          }
+          for (const key of VERIFIED_HEADERS) row[key] = entry[key] ?? ""
           row.email = ""
           row.email_title = ""
           row.email_first_name = ""
@@ -173,7 +175,6 @@ async function runRecurringScrapes() {
 
       const worksheet = XLSX.utils.json_to_sheet(rows, { header: VERIFIED_HEADERS })
       XLSX.utils.sheet_add_aoa(worksheet, [VERIFIED_HEADERS], { origin: "A1" })
-
       const workbook = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(workbook, worksheet, "Results")
       const xlsxBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" })
@@ -193,12 +194,28 @@ async function runRecurringScrapes() {
       }
 
       const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scrapes/${fileName}`
-
       await postSlackMessage(
         `✅ Scrape complete for *${schedule.city}* (${schedule.business_type}) at ${currentHour}:${currentMinute}.\n📎 [Download XLSX](${publicUrl}) – ${rows.length} rows.`,
         slackBotToken,
         slackChannelId
       )
+
+      // ✅ Upload to Instantly if requested
+      if (schedule.connect_cold_email && leadsForInstantly.length > 0) {
+        try {
+          const instantly = new InstantlyAPI({
+            apiKey: schedule.instantly_api_key,
+            listId: schedule.instantly_list_id,
+            campaignId: schedule.instantly_campaign_id,
+          })
+
+          const uploadRes = await instantly.addLeadsFromData(leadsForInstantly)
+          console.log("📤 Instantly upload response:", uploadRes)
+        } catch (err) {
+          console.error("❌ Instantly upload failed:", err)
+          await postSlackMessage(`❌ Instantly upload failed for ${schedule.city}`, slackBotToken, slackChannelId)
+        }
+      }
 
       await supabase
         .from("recurring_scrapes")
@@ -213,6 +230,7 @@ async function runRecurringScrapes() {
 
   return NextResponse.json({ message: "✅ Done processing schedules" })
 }
+
 
 
 // 👇 Support both GET and POST
