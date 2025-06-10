@@ -4,7 +4,6 @@ import { verifyEmails } from "@/actions/million-verifier"
 import { convertAndVerifyJson } from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
-import path from "path"
 import * as XLSX from "xlsx"
 
 export async function runScrapePipeline({
@@ -55,40 +54,35 @@ export async function runScrapePipeline({
     // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
       try {
-const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ""}/enrich-area-codes.xlsx`)
-if (!response.ok) throw new Error(`Failed to fetch enrich file: ${response.statusText}`)
-const arrayBuffer = await response.arrayBuffer()
-const workbook = XLSX.read(arrayBuffer, { type: "array" })
+        const response = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ""}/enrich-area-codes.xlsx`)
+        if (!response.ok) throw new Error(`Failed to fetch enrich file: ${response.statusText}`)
+        const arrayBuffer = await response.arrayBuffer()
+        const workbook = XLSX.read(arrayBuffer, { type: "array" })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const areaCodes = XLSX.utils.sheet_to_json(sheet)
 
         const areaCodeMap = new Map()
         areaCodes.forEach((row: any) => {
-          const prefix = row["postcode"]
-          const code = row["telephone area code"]
+          const prefix = (row["postcode"] || "").trim().toUpperCase()
+          const code = (row["telephone area code"] || "").trim()
           if (prefix && code) {
-            areaCodeMap.set(prefix.trim().toUpperCase(), code.toString().trim())
+            areaCodeMap.set(prefix, code)
           }
         })
-console.log("🔍 Total postal prefixes loaded:", areaCodeMap.size)
-console.log("📬 First 50 keys:", Array.from(areaCodeMap.keys()).slice(0, 50))
 
         const getPostalPrefix = (postal: string) =>
           (postal || "").split(" ")[0].trim().toUpperCase()
 
-filteredData = filteredData.map(row => {
-  const prefix = getPostalPrefix(row.postal_code)
-  const code = areaCodeMap.get(prefix) || ""
-  if (!code) {
-    console.warn(`🚫 No area code match for postal: "${row.postal_code}" (prefix: "${prefix}")`)
-  } else {
-    console.log(`✅ Found area code "${code}" for postal prefix "${prefix}"`)
-  }
-  return {
-    ...row,
-    ["enrich area codes"]: code,
-  }
-})
+        filteredData = filteredData.map(row => {
+          const prefix = getPostalPrefix(row.postal_code)
+          const code = areaCodeMap.get(prefix) || ""
+          return {
+            ...row,
+            ["enrich area codes"]: code,
+          }
+        })
+
+        console.log("✅ Enrichment complete. Area codes added for", filteredData.length, "rows.")
       } catch (err) {
         console.error("❌ Failed to enrich area codes:", err)
         toast({
