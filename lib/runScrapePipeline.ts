@@ -1,11 +1,15 @@
 import { fetchBusinessData } from "@/actions/targetron"
 import { supabase } from "@/lib/supabase"
 import { verifyEmails } from "@/actions/million-verifier"
-import { convertAndVerifyJson, downloadJsonAsFile, convertJsonToCsv } from "@/lib/utils"
+import {
+  convertAndVerifyJson,
+  downloadJsonAsFile,
+  convertJsonToCsv,
+  loadEnrichAreaCodesFromURL
+} from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
 import * as XLSX from "xlsx"
-import { loadEnrichAreaCodesFromURL } from "@/lib/utils"
 
 export async function runScrapePipeline({
   formData,
@@ -55,18 +59,14 @@ export async function runScrapePipeline({
     // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
       try {
-const getPostalPrefix = (postal: string) => {
-  if (!postal) return ""
-  const upper = postal.trim().toUpperCase()
-  const match = upper.match(/^[A-Z]+\d+[A-Z]?/)
-  return match ? match[0] : upper.split(" ")[0]
-}
+        const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
 
-const areaCodeMap = await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
-filteredData = filteredData.map(row => ({
-  ...row,
-  ["enrich area codes"]: areaCodeMap[getPostalPrefix(row.postal_code)] || "",
-}))
+        const areaCodeMap = await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
+
+        filteredData = filteredData.map(row => ({
+          ...row,
+          ["enrich area codes"]: areaCodeMap[getPostalPrefix(row.postal_code)] || "",
+        }))
       } catch (err) {
         console.error("❌ Failed to enrich area codes:", err)
         toast({
@@ -153,4 +153,3 @@ filteredData = filteredData.map(row => ({
     toast({ title: "Process error", description: "Check console for details.", variant: "destructive" })
   }
 }
-
