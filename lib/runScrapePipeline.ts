@@ -68,8 +68,6 @@ const response = await fetch("/enrich-area-codes.xlsx")
       if (rawPostcode && code) {
         areaCodeMap.set(rawPostcode, code)
       }
-          console.log(rawPostcode)
-              console.log(code)
     })
 
 
@@ -79,6 +77,7 @@ const response = await fetch("/enrich-area-codes.xlsx")
     filteredData = filteredData.map(row => {
       const prefix = getPostalPrefix(row.postal_code)
       const code = areaCodeMap.get(prefix) || ""
+            console.log(row)
       return {
         ...row,
         ["enrich area codes"]: code,
