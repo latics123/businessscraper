@@ -1112,8 +1112,8 @@ max={useRecurringSettings ? 1000 : 5}
           <tbody className="divide-y divide-gray-100">
             {recurringSchedules
               .filter((s) => {
-                if (typeFilter === "recurring") return s.source === "recurring"
-                if (typeFilter === "one-time") return s.source === "queued"
+if (typeFilter === "recurring") return !s.one_time
+if (typeFilter === "one-time") return s.one_time
                 return true
               })
               .sort((a, b) => {
