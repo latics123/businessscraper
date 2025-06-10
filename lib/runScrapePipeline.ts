@@ -70,6 +70,7 @@ const workbook = XLSX.read(arrayBuffer, { type: "array" })
             areaCodeMap.set(prefix.trim().toUpperCase(), code.toString().trim())
           }
         })
+console.log("🔍 Loaded areaCodeMap with keys:", Array.from(areaCodeMap.keys()).slice(0, 10))
 
         const getPostalPrefix = (postal: string) =>
           (postal || "").split(" ")[0].trim().toUpperCase()
