@@ -708,15 +708,29 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
       })
     }
 
-    const { error } = await supabase.from("recurring_scrapes").insert(newSchedules)
-    if (error) {
-      console.error("❌ Error saving batch schedules:", error)
-      toast({
-        title: "❌ Error",
-        description: `Failed to save recurring batches for ${day}.`,
-        variant: "destructive",
-      })
-    }
+const { error } = await supabase.from("recurring_scrapes").insert(newSchedules)
+if (error) {
+  console.error("❌ Error saving batch schedules:", error)
+  toast({
+    title: "❌ Error",
+    description: `Failed to save recurring batches for ${day}.`,
+    variant: "destructive",
+  })
+  continue // 🔁 continue to next day if one fails
+}
+
+// ✅ Run form scrape instantly after batch schedule, ONLY if all succeeded
+if (
+  formData.addtocampaign &&
+  formData.connectColdEmail &&
+  formData.instantlyApiKey &&
+  formData.instantlyCampaignId
+) {
+  document.querySelector("form")?.dispatchEvent(
+    new Event("submit", { cancelable: true, bubbles: true })
+  )
+}
+
   }
 
   toast({
