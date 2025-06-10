@@ -4,7 +4,7 @@ import { verifyEmails } from "@/actions/million-verifier"
 import { convertAndVerifyJson, downloadJsonAsFile, convertJsonToCsv } from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
-
+import * as XLSX from "xlsx"
 
 export async function runScrapePipeline({
   formData,
@@ -47,13 +47,50 @@ export async function runScrapePipeline({
       return
     }
 
-    const filteredData = formData.phoneFilter === "without_phone"
+    let filteredData = formData.phoneFilter === "without_phone"
       ? data.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
       : data
 
+    // ✅ Enrich with area codes if enabled
+    if (formData.enrichWithAreaCodes) {
+      try {
+        const res = await fetch("/enrich-area-codes.xlsx")
+        const arrayBuffer = await res.arrayBuffer()
+        const workbook = XLSX.read(arrayBuffer, { type: "array" })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const areaCodes = XLSX.utils.sheet_to_json(sheet)
+
+        const areaCodeMap = new Map()
+        areaCodes.forEach((row: any) => {
+          const prefix = row["postcode"]
+          const code = row["telephone area code"]
+          if (prefix && code) {
+            areaCodeMap.set(prefix.trim().toUpperCase(), code.trim())
+          }
+        })
+
+        const getPostalPrefix = (postal: string) =>
+          (postal || "").split(" ")[0].toUpperCase()
+
+        filteredData = filteredData.map(row => ({
+          ...row,
+          ["enrich area codes"]: areaCodeMap.get(getPostalPrefix(row.postal_code)) || "",
+        }))
+      } catch (err) {
+        console.error("❌ Failed to enrich area codes:", err)
+        toast({
+          title: "Enrichment failed",
+          description: "Could not enrich area codes from XLSX file.",
+          variant: "destructive",
+        })
+      }
+    }
+
     setBusinessData(filteredData)
 
-    await supabase.from("saved_json").insert([{ json_data: filteredData, verified: false, created_at: new Date().toISOString() }])
+    await supabase.from("saved_json").insert([
+      { json_data: filteredData, verified: false, created_at: new Date().toISOString() }
+    ])
 
     let verifiedData = filteredData
 
@@ -69,7 +106,11 @@ export async function runScrapePipeline({
       }
     }
 
-
+    if (downloadFiles) {
+      downloadJsonAsFile(verifiedData, formData.jsonFileName)
+      convertJsonToCsv(verifiedData, formData.csvFileName)
+      toast({ title: "Files downloaded", description: "Local downloads completed." })
+    }
 
     if (sendToTelegram && formData.telegramBotToken && formData.telegramChatId) {
       await sendTelegramMessage(
@@ -115,6 +156,7 @@ export async function runScrapePipeline({
         toast({ title: "No valid leads", description: "No verified leads available for Instantly." })
       }
     }
+
   } catch (err) {
     console.error("❌ Pipeline error:", err)
     toast({ title: "Process error", description: "Check console for details.", variant: "destructive" })
