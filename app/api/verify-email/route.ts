@@ -8,7 +8,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing API key" }, { status: 400 })
     }
 
-    // Single email fallback
     if (email) {
       const url = `https://api.millionverifier.com/api/v3/?api=${encodeURIComponent(apiKey)}&email=${encodeURIComponent(email)}&timeout=10`
       const res = await fetch(url)
@@ -29,7 +28,6 @@ export async function POST(req: Request) {
       })
     }
 
-    // Batch email verification (max 25)
     if (Array.isArray(emails)) {
       const batch = emails.slice(0, 25)
 
