@@ -51,51 +51,52 @@ export async function runScrapePipeline({
       ? data.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
       : data
 
-    // ✅ Enrich with area codes if enabled
-if (formData.enrichWithAreaCodes) {
-  try {
-const response = await fetch("/enrich-area-codes.xlsx")
-    if (!response.ok) throw new Error(`Failed to fetch enrich file: ${response.statusText}`)
-    const arrayBuffer = await response.arrayBuffer()
-    const workbook = XLSX.read(arrayBuffer, { type: "array" })
-    const sheet = workbook.Sheets[workbook.SheetNames[0]]
-    const areaCodes = XLSX.utils.sheet_to_json(sheet)
+    // ✅ Enrich with area codes
+    if (formData.enrichWithAreaCodes) {
+      try {
+        const response = await fetch("/enrich-area-codes.xlsx")
+        if (!response.ok) throw new Error(`Failed to fetch enrich file: ${response.statusText}`)
 
-    const areaCodeMap = new Map()
-    areaCodes.forEach((row: any) => {
-      const rawPostcode = (row["postcode"] || "").trim().toUpperCase()
-      const code = (row["telephone area code"] || "").toString().trim()
-      if (rawPostcode && code) {
-        areaCodeMap.set(rawPostcode, code)
+        const arrayBuffer = await response.arrayBuffer()
+        const workbook = XLSX.read(arrayBuffer, { type: "array" })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const areaCodes = XLSX.utils.sheet_to_json(sheet)
+
+        const areaCodeMap = new Map()
+        areaCodes.forEach((row: any) => {
+          const rawPostcode = (row["postcode"] || "").trim().toUpperCase()
+          const code = (row["telephone area code"] || "").toString().trim()
+          if (rawPostcode && code) {
+            areaCodeMap.set(rawPostcode, code)
+          }
+        })
+
+        const getPostalPrefix = (postal: string) =>
+          (postal || "").split(" ")[0].trim().toUpperCase()
+
+        filteredData = filteredData.map(row => {
+          const prefix = getPostalPrefix(row.postal_code)
+          const code = areaCodeMap.get(prefix) || ""
+          return {
+            ...row,
+            ["enrich area codes"]: code,
+          }
+        })
+
+        console.log("✅ Enrichment complete. Area codes added for", filteredData.length, "rows.")
+      } catch (err) {
+        console.error("❌ Failed to enrich area codes:", err)
+        toast({
+          title: "Enrichment failed",
+          description: "Could not enrich area codes from XLSX file.",
+          variant: "destructive",
+        })
       }
-    })
-
-
-    const getPostalPrefix = (postal: string) =>
-      (postal || "").split(" ")[0].trim().toUpperCase()
-
-    filteredData = filteredData.map(row => {
-      const prefix = getPostalPrefix(row.postal_code)
-      const code = areaCodeMap.get(prefix) || ""
-            console.log(row)
-      return {
-        ...row,
-        ["enrich area codes"]: code,
-      }
-    })
-
-    console.log("✅ Enrichment complete. Area codes added for", filteredData.length, "rows.")
-  } catch (err) {
-    console.error("❌ Failed to enrich area codes:", err)
-    toast({
-      title: "Enrichment failed",
-      description: "Could not enrich area codes from XLSX file.",
-      variant: "destructive",
-    })
-  }
-}
+    }
+console.log("before calling setbusinessdata function:" , filteredData)
 
     setBusinessData(filteredData)
+console.log("after calling setbusinessdata function:" , filteredData)
 
     await supabase.from("saved_json").insert([
       { json_data: filteredData, verified: false, created_at: new Date().toISOString() }
