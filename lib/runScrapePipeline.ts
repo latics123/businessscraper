@@ -68,7 +68,10 @@ const response = await fetch("/enrich-area-codes.xlsx")
       if (rawPostcode && code) {
         areaCodeMap.set(rawPostcode, code)
       }
+          console.log(rawPostcode)
+              console.log(code)
     })
+
 
     const getPostalPrefix = (postal: string) =>
       (postal || "").split(" ")[0].trim().toUpperCase()
