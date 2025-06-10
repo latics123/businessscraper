@@ -1,11 +1,7 @@
 import { fetchBusinessData } from "@/actions/targetron"
 import { supabase } from "@/lib/supabase"
 import { verifyEmails } from "@/actions/million-verifier"
-import {
-  convertAndVerifyJson,
-  downloadJsonAsFile,
-  convertJsonToCsv,
-} from "@/lib/utils"
+import { convertAndVerifyJson, downloadJsonAsFile, convertJsonToCsv } from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
 import * as XLSX from "xlsx"
@@ -55,42 +51,35 @@ export async function runScrapePipeline({
       ? data.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
       : data
 
-    // ✅ Enrich with area codes using /api/enrich-area-codes
+    // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
       try {
-        const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
-        const getFallbackPrefix = (postal: string) => (postal || "").replace(/\s/g, "").slice(0, 3).toUpperCase()
+        const res = await fetch("public/enrich-area-codes.xlsx")
+        const arrayBuffer = await res.arrayBuffer()
+        const workbook = XLSX.read(arrayBuffer, { type: "array" })
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const areaCodes = XLSX.utils.sheet_to_json(sheet)
 
-        const res = await fetch("/api/enrich-area-codes")
-        if (!res.ok) throw new Error(`Failed to fetch area codes: ${res.statusText}`)
-
-        const areaCodeMap: Record<string, string> = await res.json()
-
-        filteredData = filteredData.map(row => {
-          const postalCode = row.postal_code
-          const prefix = getPostalPrefix(postalCode)
-          let areaCode = areaCodeMap[prefix]
-
-          if (!areaCode) {
-            const fallbackPrefix = getFallbackPrefix(postalCode)
-            areaCode = areaCodeMap[fallbackPrefix]
-            if (areaCode) {
-              console.warn(`🔁 Used fallback for ${postalCode}: matched ${fallbackPrefix} → ${areaCode}`)
-            } else {
-              console.warn(`❌ No area code found for ${postalCode} (prefix: ${prefix}, fallback: ${fallbackPrefix})`)
-            }
-          }
-
-          return {
-            ...row,
-            ["enrich area codes"]: areaCode || "",
+        const areaCodeMap = new Map()
+        areaCodes.forEach((row: any) => {
+          const prefix = row["postcode"]
+          const code = row["telephone area code"]
+          if (prefix && code) {
+            areaCodeMap.set(prefix.trim().toUpperCase(), code.trim())
           }
         })
+
+const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
+
+        filteredData = filteredData.map(row => ({
+          ...row,
+          ["enrich area codes"]: areaCodeMap.get(getPostalPrefix(row.postal_code)) || "",
+        }))
       } catch (err) {
         console.error("❌ Failed to enrich area codes:", err)
         toast({
           title: "Enrichment failed",
-          description: "Could not enrich area codes from API.",
+          description: "Could not enrich area codes from XLSX file.",
           variant: "destructive",
         })
       }
@@ -172,3 +161,4 @@ export async function runScrapePipeline({
     toast({ title: "Process error", description: "Check console for details.", variant: "destructive" })
   }
 }
+
