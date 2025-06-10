@@ -67,6 +67,8 @@ async function postSlackMessage(text: string, slackBotToken: string, slackChanne
   }
 }
 
+// ...imports remain unchanged
+
 async function runRecurringScrapes() {
   const now = DateTime.now().setZone("Europe/Tirane")
   const currentDay = now.toFormat("cccc")
@@ -88,9 +90,6 @@ async function runRecurringScrapes() {
   const slackChannelId = settings.slackChannelId
 
   console.log("🧪 Slack settings:", { slackBotToken, slackChannelId })
-  if (!slackBotToken || !slackChannelId) {
-    console.warn("⚠️ Slack bot token or channel ID missing.")
-  }
 
   const dueSchedules = schedules?.filter(
     (s) =>
@@ -98,10 +97,6 @@ async function runRecurringScrapes() {
       s.hour === currentHour &&
       s.minute === currentMinute
   ) || []
-
-  // if (dueSchedules.length === 0 && slackBotToken && slackChannelId) {
-  //   await postSlackMessage(`📭 No recurring scrapes scheduled at ${currentHour}:${currentMinute}.`, slackBotToken, slackChannelId)
-  // }
 
   for (const schedule of dueSchedules) {
     try {
@@ -120,6 +115,13 @@ async function runRecurringScrapes() {
         enrichWithAreaCodes: schedule.enrich_with_area_codes ?? false,
         addedFrom: settings.fromDate || now.toISODate(),
         addedTo: settings.toDate || now.toISODate(),
+
+        // ✅ These are now passed from schedule
+        connectColdEmail: schedule.connect_cold_email ?? false,
+        instantlyApiKey: schedule.instantly_api_key ?? "",
+        instantlyListId: schedule.instantly_list_id ?? "",
+        instantlyCampaignId: schedule.instantly_campaign_id ?? "",
+        addtocampaign: schedule.add_to_campaign ?? false,
       })
 
       if (!businessData?.length) {
@@ -211,6 +213,7 @@ async function runRecurringScrapes() {
 
   return NextResponse.json({ message: "✅ Done processing schedules" })
 }
+
 
 // 👇 Support both GET and POST
 export async function GET() {
