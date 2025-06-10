@@ -55,7 +55,12 @@ export async function runScrapePipeline({
     // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
       try {
-const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
+const getPostalPrefix = (postal: string) => {
+  if (!postal) return ""
+  const upper = postal.trim().toUpperCase()
+  const match = upper.match(/^[A-Z]+\d+[A-Z]?/)
+  return match ? match[0] : upper.split(" ")[0]
+}
 
 const areaCodeMap = await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
 filteredData = filteredData.map(row => ({
