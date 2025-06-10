@@ -395,25 +395,32 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
 
     const newSchedules = []
     for (let i = 0; i < batchCount; i++) {
-      newSchedules.push({
-        hour,
-        minute,
-        recurring_days: [day],
-        created_at: new Date().toISOString(),
-        record_limit: totalLimit,
-        skip_times: i + 1,
-        add_to_campaign: formData.addtocampaign,
-        city: formData.city,
-        state: formData.state,
-        country: formData.country,
-        postal_code: formData.postalCode,
-        business_type: formData.businessType,
-        business_status: formData.businessStatus,
-        with_phone: formData.phoneFilter === "with_phone" || formData.phoneFilter === "enter_phone",
-        without_phone: formData.phoneFilter === "without_phone",
-        enrich_with_area_codes: formData.enrichWithAreaCodes,
-        phone_filter: formData.phoneFilter,
-      })
+newSchedules.push({
+  hour,
+  minute,
+  recurring_days: [day],
+  created_at: new Date().toISOString(),
+  record_limit: totalLimit,
+  skip_times: i + 1,
+  add_to_campaign: formData.addtocampaign,
+  city: formData.city,
+  state: formData.state,
+  country: formData.country,
+  postal_code: formData.postalCode,
+  business_type: formData.businessType,
+  business_status: formData.businessStatus,
+  with_phone: formData.phoneFilter === "with_phone" || formData.phoneFilter === "enter_phone",
+  without_phone: formData.phoneFilter === "without_phone",
+  enrich_with_area_codes: formData.enrichWithAreaCodes,
+  phone_filter: formData.phoneFilter,
+
+  // 🟢 Required for Instantly
+  instantly_api_key: formData.instantlyApiKey,
+  instantly_list_id: formData.instantlyListId,
+  instantly_campaign_id: formData.instantlyCampaignId,
+  connect_cold_email: formData.connectColdEmail,
+})
+
     }
 
     const { error } = await supabase.from("recurring_scrapes").insert(newSchedules)
