@@ -1,14 +1,14 @@
 import { fetchBusinessData } from "@/actions/targetron"
 import { supabase } from "@/lib/supabase"
 import { verifyEmails } from "@/actions/million-verifier"
-import { convertAndVerifyJson } from "@/lib/utils"
+import { convertAndVerifyJson, downloadJsonAsFile, convertJsonToCsv } from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
 import * as XLSX from "xlsx"
 
 export async function runScrapePipeline({
   formData,
-  downloadFiles = false,
+  downloadFiles = true,
   uploadToInstantlyEnabled = true,
   sendToTelegram = true,
   setBusinessData,
@@ -51,39 +51,30 @@ export async function runScrapePipeline({
       ? data.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
       : data
 
-    // ✅ Enrich with area codes
+    // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
       try {
-        const response = await fetch("/enrich-area-codes.xlsx")
-        if (!response.ok) throw new Error(`Failed to fetch enrich file: ${response.statusText}`)
-
-        const arrayBuffer = await response.arrayBuffer()
+        const res = await fetch("public/enrich-area-codes.xlsx")
+        const arrayBuffer = await res.arrayBuffer()
         const workbook = XLSX.read(arrayBuffer, { type: "array" })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const areaCodes = XLSX.utils.sheet_to_json(sheet)
 
         const areaCodeMap = new Map()
         areaCodes.forEach((row: any) => {
-          const rawPostcode = (row["postcode"] || "").trim().toUpperCase()
-          const code = (row["telephone area code"] || "").toString().trim()
-          if (rawPostcode && code) {
-            areaCodeMap.set(rawPostcode, code)
+          const prefix = row["postcode"]
+          const code = row["telephone area code"]
+          if (prefix && code) {
+            areaCodeMap.set(prefix.trim().toUpperCase(), code.trim())
           }
         })
 
-        const getPostalPrefix = (postal: string) =>
-          (postal || "").split(" ")[0].trim().toUpperCase()
+const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
 
-        filteredData = filteredData.map(row => {
-          const prefix = getPostalPrefix(row.postal_code)
-          const code = areaCodeMap.get(prefix) || ""
-          return {
-            ...row,
-            ["enrich area codes"]: code,
-          }
-        })
-
-        console.log("✅ Enrichment complete. Area codes added for", filteredData.length, "rows.")
+        filteredData = filteredData.map(row => ({
+          ...row,
+          ["enrich area codes"]: areaCodeMap.get(getPostalPrefix(row.postal_code)) || "",
+        }))
       } catch (err) {
         console.error("❌ Failed to enrich area codes:", err)
         toast({
@@ -93,10 +84,8 @@ export async function runScrapePipeline({
         })
       }
     }
-console.log("before calling setbusinessdata function:" , filteredData)
 
     setBusinessData(filteredData)
-console.log("after calling setbusinessdata function:" , filteredData)
 
     await supabase.from("saved_json").insert([
       { json_data: filteredData, verified: false, created_at: new Date().toISOString() }
@@ -104,7 +93,6 @@ console.log("after calling setbusinessdata function:" , filteredData)
 
     let verifiedData = filteredData
 
-    // ✅ Email verification
     if (formData.verifyEmails && formData.connectEmailVerification && formData.millionApiKey) {
       const hasEmails = filteredData.some(i => i.email || i.email_1 || i.email_2 || i.email_3)
       if (hasEmails) {
@@ -117,10 +105,15 @@ console.log("after calling setbusinessdata function:" , filteredData)
       }
     }
 
-    // ✅ Send to Telegram
+    // if (downloadFiles) {
+    //   downloadJsonAsFile(verifiedData, formData.jsonFileName)
+    //   convertJsonToCsv(verifiedData, formData.csvFileName)
+    //   toast({ title: "Files downloaded", description: "Local downloads completed." })
+    // }
+
     if (sendToTelegram && formData.telegramBotToken && formData.telegramChatId) {
       await sendTelegramMessage(
-        `<b>Business Scraper Results</b>\n\nFound ${verifiedData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
+        `<b>Business Scraper Results</b>\n\nFound ${filteredData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
         { botToken: formData.telegramBotToken, chatId: formData.telegramChatId }
       )
       await sendTelegramFile(JSON.stringify(verifiedData, null, 2), formData.jsonFileName, {
@@ -129,7 +122,6 @@ console.log("after calling setbusinessdata function:" , filteredData)
       })
     }
 
-    // ✅ Upload to Instantly
     if (
       uploadToInstantlyEnabled &&
       formData.addtocampaign &&
@@ -169,3 +161,4 @@ console.log("after calling setbusinessdata function:" , filteredData)
     toast({ title: "Process error", description: "Check console for details.", variant: "destructive" })
   }
 }
+
