@@ -178,17 +178,23 @@ export function BusinessScraperForm() {
   }
     
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  setIsLoading(true)
-  setHasData(false)
-
+export async function runScrapePipeline({
+  formData,
+  downloadFiles = true,
+  uploadToInstantlyEnabled = true,
+  sendToTelegram = true,
+  setBusinessData,
+  toast,
+}: {
+  formData: any
+  downloadFiles?: boolean
+  uploadToInstantlyEnabled?: boolean
+  sendToTelegram?: boolean
+  setBusinessData: (data: any[]) => void
+  toast: (msg: any) => void
+}) {
   try {
-    // Process 1: Fetch business data from Targetron
-    toast({
-      title: "Starting data collection",
-      description: "Fetching business data from Targetron API...",
-    })
+    toast({ title: "Starting data collection", description: "Fetching business data from Targetron API..." })
 
     const data = await fetchBusinessData({
       apiKey: formData.targetronApiKey,
@@ -202,294 +208,114 @@ const handleSubmit = async (e: React.FormEvent) => {
       skipTimes: formData.skipTimes,
       addedFrom: formData.fromDate,
       addedTo: formData.toDate,
-      withPhone:
-        formData.phoneFilter === "with_phone" ||
-        formData.phoneFilter === "enter_phone",
-      withoutPhone:
-        formData.phoneFilter === "without_phone",
+      withPhone: formData.phoneFilter === "with_phone" || formData.phoneFilter === "enter_phone",
+      withoutPhone: formData.phoneFilter === "without_phone",
       enrichWithAreaCodes: formData.enrichWithAreaCodes,
-      phoneNumber:
-        formData.phoneFilter === "enter_phone" ? formData.phoneNumber : undefined,
+      phoneNumber: formData.phoneFilter === "enter_phone" ? formData.phoneNumber : undefined,
     })
 
     if (!data || data.length === 0) {
-      toast({
-        title: "No data found",
-        description: "No business data was found with the provided criteria.",
-        variant: "destructive",
-      })
-      setIsLoading(false)
+      toast({ title: "No data found", description: "No business data matched the criteria.", variant: "destructive" })
       return
     }
 
-    // ✅ Filter data if 'without_phone' is selected
-    console.log("Raw data count:", data.length)
-
-    const filteredData =
-    formData.phoneFilter === "without_phone"
-      ? data.filter((item) => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
+    const filteredData = formData.phoneFilter === "without_phone"
+      ? data.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
       : data
-      
-    console.log("Filtered without-phone count:", filteredData.length)
-    
-    toast({
-      title: "Data fetched successfully",
-      description: `Found ${filteredData.length} business records.`,
-      variant: "success",
-    })
 
     setBusinessData(filteredData)
-try {
-  const { error } = await supabase.from("saved_json").insert([
-    {
-      json_data: filteredData,
-      verified: false,
-      created_at: new Date().toISOString(),
-    },
-  ])
 
-  if (error) {
-    console.error("❌ Failed to insert into saved_json:", error.message)
-    toast({
-      title: "Insert failed",
-      description: "Could not save data for cron job verification.",
-      variant: "destructive",
-    })
-  } else {
-    console.log("✅ Scraped data saved to Supabase for verification.")
-  }
-} catch (err) {
-  console.error("❌ Unexpected insert error:", err)
-}
-
-    toast({
-      title: "JSON file saved",
-      description: `Data saved as ${formData.jsonFileName}`,
-      variant: "success",
-    })
-
-    await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
-
-    toast({
-      title: "CSV file created",
-      description: `Data exported as ${formData.csvFileName}`,
-      variant: "success",
-    })
+    await supabase.from("saved_json").insert([{ json_data: filteredData, verified: false, created_at: new Date().toISOString() }])
 
     let verifiedData = filteredData
 
-    // ✅ Step 1: Email verification logic
-    if (
-      formData.verifyEmails &&
-      formData.connectEmailVerification &&
-      formData.millionApiKey
-    ) {
-      const hasEmailsToVerify = filteredData.some(
-        (item) =>
-          item.email ||
-          item.email_1 ||
-          item.email_2 ||
-          item.email_3
-      )
-    
-      if (hasEmailsToVerify) {
-        try {
-          toast({
-            title: "Verifying emails",
-            description: "Processing email verification...",
-          })
-    
-// 1) First do your server‐side verify (million‐verifier)
-verifiedData = await verifyEmails(filteredData, formData.millionApiKey)
-setBusinessData(verifiedData)
-
-// 2) Now run the client‐side verification + XLSX/JSON downloads,
-//    and capture the returned `updatedWithEmails` array
-const updatedArray = await convertAndVerifyJson(
-  verifiedData,
-  formData.millionApiKey
-)
-
-// 3) Overwrite `verifiedData` with that array—this one actually has
-//    each row’s `is_email_valid` (true/false) set correctly.
-verifiedData = updatedArray
-setBusinessData(verifiedData)
-
-toast({
-  title: "Emails verified",
-  description: "Verification completed. Files saved.",
-  variant: "success",
-})
-        } catch (error) {
-          console.error("Error verifying emails:", error)
-          toast({
-            title: "Email verification error",
-            description: "Failed to verify emails. Check your Million API key.",
-            variant: "destructive",
-          })
-    
-          downloadJsonAsFile(filteredData, `unverified_${formData.jsonFileName}`)
-    
-          if (filteredData.length > 0) {
-            convertJsonToCsv(filteredData, `unverified_${formData.csvFileName}`)
-            toast({
-              title: "CSV file created",
-              description: `Unverified CSV exported as unverified_${formData.csvFileName}`,
-              variant: "success",
-            })
-          } else {
-            toast({
-              title: "CSV skipped",
-              description: "No records available to export to CSV.",
-              variant: "default",
-            })
-          }
-        }
+    if (formData.verifyEmails && formData.connectEmailVerification && formData.millionApiKey) {
+      const hasEmails = filteredData.some(i => i.email || i.email_1 || i.email_2 || i.email_3)
+      if (hasEmails) {
+        verifiedData = await verifyEmails(filteredData, formData.millionApiKey)
+        verifiedData = await convertAndVerifyJson(verifiedData, formData.millionApiKey)
+        setBusinessData(verifiedData)
+        toast({ title: "Emails verified", description: "Verification complete." })
       } else {
-        toast({
-          title: "Email verification skipped",
-          description: "No emails found to verify.",
-          variant: "default",
-        })
-    
-        downloadJsonAsFile(filteredData, formData.jsonFileName)
-        convertJsonToCsv(filteredData, formData.csvFileName)
-      }
-    } else if (formData.verifyEmails && formData.connectEmailVerification) {
-      toast({
-        title: "Email verification skipped",
-        description: "Million API key is not configured. Please add it in Settings.",
-        variant: "destructive",
-      })
-    
-      downloadJsonAsFile(filteredData, formData.jsonFileName)
-      convertJsonToCsv(filteredData, formData.csvFileName)
-    }
-    
-    // ✅ Step 2: Send to Telegram
-    if (formData.telegramBotToken && formData.telegramChatId) {
-      toast({
-        title: "Sending to Telegram",
-        description: "Sending files to Telegram...",
-      })
-    
-      try {
-        await sendTelegramMessage(
-          `<b>Business Scraper Results</b>\n\nFound ${filteredData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
-          {
-            botToken: formData.telegramBotToken,
-            chatId: formData.telegramChatId,
-          }
-        )
-    
-        await sendTelegramFile(
-          JSON.stringify(verifiedData || filteredData, null, 2),
-          formData.jsonFileName,
-          {
-            botToken: formData.telegramBotToken,
-            chatId: formData.telegramChatId,
-          }
-        )
-    
-        toast({
-          title: "Files sent to Telegram",
-          description: "Business data has been sent to Telegram.",
-          variant: "success",
-        })
-      } catch (error) {
-        console.error("Error sending to Telegram:", error)
-        toast({
-          title: "Telegram error",
-          description: "Failed to send files to Telegram. Check your credentials.",
-          variant: "destructive",
-        })
+        toast({ title: "Email verification skipped", description: "No emails to verify." })
       }
     }
-    
-    // ✅ Step 3: Upload to Instantly
-// ✅ Step 3: Upload to Instantly (only valid emails)
-if (
-  formData.addtocampaign &&
-  formData.connectColdEmail &&
-  formData.instantlyApiKey &&
-  formData.instantlyCampaignId
-) {
-  try {
-    const validLeads = verifiedData
-      .filter((item) => item.is_email_valid === true && item.email && item.email.includes("@"))
-      .map((item) => {
-        const email = item.email.trim()
-        return {
-          email,
-          first_name: item.email_first_name || email.split("@")[0] || "Unknown",
-          last_name: item.email_last_name || "",
+
+    if (downloadFiles) {
+      downloadJsonAsFile(verifiedData, formData.jsonFileName)
+      convertJsonToCsv(verifiedData, formData.csvFileName)
+      toast({ title: "Files downloaded", description: "Local downloads completed." })
+    }
+
+    if (sendToTelegram && formData.telegramBotToken && formData.telegramChatId) {
+      await sendTelegramMessage(
+        `<b>Business Scraper Results</b>\n\nFound ${filteredData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
+        { botToken: formData.telegramBotToken, chatId: formData.telegramChatId }
+      )
+      await sendTelegramFile(JSON.stringify(verifiedData, null, 2), formData.jsonFileName, {
+        botToken: formData.telegramBotToken,
+        chatId: formData.telegramChatId,
+      })
+    }
+
+    if (
+      uploadToInstantlyEnabled &&
+      formData.addtocampaign &&
+      formData.connectColdEmail &&
+      formData.instantlyApiKey &&
+      formData.instantlyCampaignId
+    ) {
+      const validLeads = verifiedData
+        .filter(i => i.is_email_valid && i.email?.includes("@"))
+        .map(i => ({
+          email: i.email.trim(),
+          first_name: i.email_first_name || i.email.split("@")[0] || "Unknown",
+          last_name: i.email_last_name || "",
           custom_variables: {
-            company: item.company_name || item.display_name || "",
-            phone: item.phone || "",
-            city: item.city || "",
-            country: item.country || "",
-            website: item.site || "",
+            company: i.company_name || i.display_name || "",
+            phone: i.phone || "",
+            city: i.city || "",
+            country: i.country || "",
+            website: i.site || "",
           },
-        }
-      })
+        }))
 
-    if (validLeads.length === 0) {
-      toast({
-        title: "No valid emails",
-        description: "No verified emails available to upload to Instantly.",
-        variant: "destructive",
-      })
-      return
+      if (validLeads.length > 0) {
+        await uploadToInstantly(validLeads, {
+          apiKey: formData.instantlyApiKey,
+          listId: formData.instantlyListId,
+          campaignId: formData.instantlyCampaignId,
+        })
+        toast({ title: "Uploaded to Instantly", description: `${validLeads.length} leads uploaded.` })
+      } else {
+        toast({ title: "No valid leads", description: "No verified leads available for Instantly." })
+      }
     }
-
-    // Send all valid leads at once
-    await uploadToInstantly(validLeads, {
-      apiKey: formData.instantlyApiKey,
-      listId: formData.instantlyListId,
-      campaignId: formData.instantlyCampaignId,
-    })
-
-    toast({
-      title: "✅ Uploaded to Instantly",
-      description: `${validLeads.length} verified leads uploaded.`,
-      variant: "success",
-    })
-  } catch (error) {
-    console.error("❌ Instantly upload error:", error)
-    toast({
-      title: "Instantly upload failed",
-      description: "An error occurred while uploading leads. Check the console for details.",
-      variant: "destructive",
-    })
+  } catch (err) {
+    console.error("❌ Pipeline error:", err)
+    toast({ title: "Process error", description: "Check console for details.", variant: "destructive" })
   }
-} else if (formData.addtocampaign && formData.connectColdEmail) {
-  toast({
-    title: "Instantly credentials missing",
-    description: "Please provide Instantly API key, List ID, and Campaign ID in Settings.",
-    variant: "destructive",
+}
+
+  
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setIsLoading(true)
+  setHasData(false)
+
+  await runScrapePipeline({
+    formData,
+    downloadFiles: true,
+    uploadToInstantlyEnabled: true,
+    sendToTelegram: true,
+    setBusinessData,
+    toast,
   })
+
+  setIsLoading(false)
+  setHasData(true)
 }
 
-// … (some lines below) …
-    
-    setHasData(true)
-
-    toast({
-      title: "Process completed",
-      description: "All operations completed successfully.",
-      variant: "success",
-    })
-  } catch (error) {
-    console.error("Error in process:", error)
-    toast({
-      title: "Error",
-      description: "An error occurred during the process. Please check the console for details.",
-      variant: "destructive",
-    })
-  } finally {
-    setIsLoading(false)
-  }
-}
 
   const handleDownloadJson = () => {
     if (businessData.length > 0) {
@@ -620,22 +446,20 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
       variant: "success",
     })
 
-    // ✅ Trigger scrape + instantly upload after scheduling
-    if (
-      formData.addtocampaign &&
-      formData.connectColdEmail &&
-      formData.instantlyApiKey &&
-      formData.instantlyCampaignId
-    ) {
-      document.querySelector("form")?.dispatchEvent(
-        new Event("submit", { cancelable: true, bubbles: true })
-      )
-    }
+    // ✅ Run the pipeline logic directly (no XLSX download)
+    await runScrapePipeline({
+      formData,
+      downloadFiles: false,
+      uploadToInstantlyEnabled: true,
+      sendToTelegram: true,
+      setBusinessData,
+      toast,
+    })
 
     return
   }
 
-  // 🔁 Regular Recurring Logic (unchanged)
+  // 🔁 Regular Recurring Logic
   if (!recurringHour || !recurringMinute || selectedDays.length === 0) {
     alert("Please specify hour, minute, and at least one weekday.")
     return
@@ -708,29 +532,27 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
       })
     }
 
-const { error } = await supabase.from("recurring_scrapes").insert(newSchedules)
-if (error) {
-  console.error("❌ Error saving batch schedules:", error)
-  toast({
-    title: "❌ Error",
-    description: `Failed to save recurring batches for ${day}.`,
-    variant: "destructive",
-  })
-  continue // 🔁 continue to next day if one fails
-}
+    const { error } = await supabase.from("recurring_scrapes").insert(newSchedules)
 
-// ✅ Run form scrape instantly after batch schedule, ONLY if all succeeded
-if (
-  formData.addtocampaign &&
-  formData.connectColdEmail &&
-  formData.instantlyApiKey &&
-  formData.instantlyCampaignId
-) {
-  document.querySelector("form")?.dispatchEvent(
-    new Event("submit", { cancelable: true, bubbles: true })
-  )
-}
+    if (error) {
+      console.error("❌ Error saving batch schedules:", error)
+      toast({
+        title: "❌ Error",
+        description: `Failed to save recurring batches for ${day}.`,
+        variant: "destructive",
+      })
+      continue
+    }
 
+    // ✅ Run scrape pipeline after each day's schedule is saved (optional: optimize to only run once)
+    await runScrapePipeline({
+      formData,
+      downloadFiles: false,
+      uploadToInstantlyEnabled: true,
+      sendToTelegram: true,
+      setBusinessData,
+      toast,
+    })
   }
 
   toast({
@@ -745,6 +567,7 @@ if (
 
   fetchRecurringSchedules().then(setRecurringSchedules)
 }
+
 
 
 
