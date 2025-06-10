@@ -69,11 +69,7 @@ export async function runScrapePipeline({
       }
     }
 
-    if (downloadFiles) {
-      downloadJsonAsFile(verifiedData, formData.jsonFileName)
-      convertJsonToCsv(verifiedData, formData.csvFileName)
-      toast({ title: "Files downloaded", description: "Local downloads completed." })
-    }
+
 
     if (sendToTelegram && formData.telegramBotToken && formData.telegramChatId) {
       await sendTelegramMessage(
