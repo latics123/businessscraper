@@ -1,12 +1,14 @@
 import { fetchBusinessData } from "@/actions/targetron"
 import { supabase } from "@/lib/supabase"
 import { verifyEmails } from "@/actions/million-verifier"
-import { convertAndVerifyJson, downloadJsonAsFile, convertJsonToCsv } from "@/lib/utils"
+import {
+  convertAndVerifyJson,
+  downloadJsonAsFile,
+  convertJsonToCsv,
+} from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
 import * as XLSX from "xlsx"
-import * as fs from "fs"
-import * as path from "path"
 
 export async function runScrapePipeline({
   formData,
@@ -53,26 +55,16 @@ export async function runScrapePipeline({
       ? data.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
       : data
 
-    // ✅ Enrich with area codes using fs + XLSX
+    // ✅ Enrich with area codes using /api/enrich-area-codes
     if (formData.enrichWithAreaCodes) {
       try {
         const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
         const getFallbackPrefix = (postal: string) => (postal || "").replace(/\s/g, "").slice(0, 3).toUpperCase()
 
-        const filePath = path.resolve(process.cwd(), "public/enrich-area-codes.xlsx")
-        const arrayBuffer = fs.readFileSync(filePath)
-        const workbook = XLSX.read(arrayBuffer, { type: "buffer" })
-        const sheet = workbook.Sheets[workbook.SheetNames[0]]
-        const rows: any[] = XLSX.utils.sheet_to_json(sheet)
+        const res = await fetch("/api/enrich-area-codes")
+        if (!res.ok) throw new Error(`Failed to fetch area codes: ${res.statusText}`)
 
-        const areaCodeMap: Record<string, string> = {}
-        rows.forEach(row => {
-          const rawPostcode = String(row["postcode"] || "").split(" ")[0].trim().toUpperCase()
-          const code = String(row["telephone area code"] || "").trim()
-          if (rawPostcode && code) {
-            areaCodeMap[rawPostcode] = code
-          }
-        })
+        const areaCodeMap: Record<string, string> = await res.json()
 
         filteredData = filteredData.map(row => {
           const postalCode = row.postal_code
@@ -98,7 +90,7 @@ export async function runScrapePipeline({
         console.error("❌ Failed to enrich area codes:", err)
         toast({
           title: "Enrichment failed",
-          description: "Could not enrich area codes from XLSX file.",
+          description: "Could not enrich area codes from API.",
           variant: "destructive",
         })
       }
