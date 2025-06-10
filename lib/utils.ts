@@ -27,7 +27,7 @@ export function downloadJsonAsFile(data: any, filename: string) {
 
 // Enrich Area Codes
 let enrichAreaCodeMap: Record<string, string> = {}
-export async function loadEnrichAreaCodesFromURL(url: string = "/enrich-area-codes.xlsx"): Promise<void> {
+export async function loadEnrichAreaCodesFromURL(url: string = "/enrich-area-codes.xlsx"): Promise<Record<string, string>> {
   const response = await fetch(url)
   if (!response.ok) throw new Error(`Failed to load enrich file: ${response.statusText}`)
   const arrayBuffer = await response.arrayBuffer()
@@ -35,13 +35,13 @@ export async function loadEnrichAreaCodesFromURL(url: string = "/enrich-area-cod
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
   const jsonData: any[] = XLSX.utils.sheet_to_json(sheet)
 
-  enrichAreaCodeMap = {}
+  const map: Record<string, string> = {}
   for (const row of jsonData) {
     const postcode = String(row["postcode"] || "").split(" ")[0].trim().toUpperCase()
     const areaCode = String(row["telephone area code"] || "").trim()
-    if (postcode && areaCode) enrichAreaCodeMap[postcode] = areaCode
+    if (postcode && areaCode) map[postcode] = areaCode
   }
-  console.log("✅ Enrich map loaded with", Object.keys(enrichAreaCodeMap).length, "entries")
+  return map
 }
 
 // XLSX Export
