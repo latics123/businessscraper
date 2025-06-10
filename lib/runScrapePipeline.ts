@@ -1,14 +1,15 @@
 import { fetchBusinessData } from "@/actions/targetron"
 import { supabase } from "@/lib/supabase"
 import { verifyEmails } from "@/actions/million-verifier"
-import { convertAndVerifyJson, downloadJsonAsFile, convertJsonToCsv } from "@/lib/utils"
+import { convertAndVerifyJson } from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
+import path from "path"
 import * as XLSX from "xlsx"
 
 export async function runScrapePipeline({
   formData,
-  downloadFiles = true,
+  downloadFiles = false,
   uploadToInstantlyEnabled = true,
   sendToTelegram = true,
   setBusinessData,
@@ -54,9 +55,8 @@ export async function runScrapePipeline({
     // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
       try {
-        const res = await fetch("public/enrich-area-codes.xlsx")
-        const arrayBuffer = await res.arrayBuffer()
-        const workbook = XLSX.read(arrayBuffer, { type: "array" })
+        const filePath = path.join(process.cwd(), "public", "enrich-area-codes.xlsx")
+        const workbook = XLSX.readFile(filePath)
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
         const areaCodes = XLSX.utils.sheet_to_json(sheet)
 
@@ -65,11 +65,12 @@ export async function runScrapePipeline({
           const prefix = row["postcode"]
           const code = row["telephone area code"]
           if (prefix && code) {
-            areaCodeMap.set(prefix.trim().toUpperCase(), code.trim())
+            areaCodeMap.set(prefix.trim().toUpperCase(), code.toString().trim())
           }
         })
 
-const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
+        const getPostalPrefix = (postal: string) =>
+          (postal || "").split(" ")[0].trim().toUpperCase()
 
         filteredData = filteredData.map(row => ({
           ...row,
@@ -93,6 +94,7 @@ const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().
 
     let verifiedData = filteredData
 
+    // ✅ Email verification
     if (formData.verifyEmails && formData.connectEmailVerification && formData.millionApiKey) {
       const hasEmails = filteredData.some(i => i.email || i.email_1 || i.email_2 || i.email_3)
       if (hasEmails) {
@@ -105,15 +107,10 @@ const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().
       }
     }
 
-    if (downloadFiles) {
-      downloadJsonAsFile(verifiedData, formData.jsonFileName)
-      convertJsonToCsv(verifiedData, formData.csvFileName)
-      toast({ title: "Files downloaded", description: "Local downloads completed." })
-    }
-
+    // ✅ Send to Telegram
     if (sendToTelegram && formData.telegramBotToken && formData.telegramChatId) {
       await sendTelegramMessage(
-        `<b>Business Scraper Results</b>\n\nFound ${filteredData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
+        `<b>Business Scraper Results</b>\n\nFound ${verifiedData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
         { botToken: formData.telegramBotToken, chatId: formData.telegramChatId }
       )
       await sendTelegramFile(JSON.stringify(verifiedData, null, 2), formData.jsonFileName, {
@@ -122,6 +119,7 @@ const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().
       })
     }
 
+    // ✅ Upload to Instantly
     if (
       uploadToInstantlyEnabled &&
       formData.addtocampaign &&
