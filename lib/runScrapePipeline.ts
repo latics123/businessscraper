@@ -4,7 +4,7 @@ import { verifyEmails } from "@/actions/million-verifier"
 import { convertAndVerifyJson, downloadJsonAsFile, convertJsonToCsv } from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
-import * as XLSX from "xlsx"
+import { areaCodeMap } from "@/lib/area-code-map"
 
 export async function runScrapePipeline({
   formData,
@@ -51,35 +51,29 @@ export async function runScrapePipeline({
       ? data.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
       : data
 
-    // ✅ Enrich with area codes if enabled
+    // ✅ Enrich with area codes using static map
     if (formData.enrichWithAreaCodes) {
       try {
-        const res = await fetch("public/enrich-area-codes.xlsx")
-        const arrayBuffer = await res.arrayBuffer()
-        const workbook = XLSX.read(arrayBuffer, { type: "array" })
-        const sheet = workbook.Sheets[workbook.SheetNames[0]]
-        const areaCodes = XLSX.utils.sheet_to_json(sheet)
+        const getPostalPrefix = (postal: string) =>
+          (postal || "").split(" ")[0].trim().toUpperCase()
 
-        const areaCodeMap = new Map()
-        areaCodes.forEach((row: any) => {
-          const prefix = row["postcode"]
-          const code = row["telephone area code"]
-          if (prefix && code) {
-            areaCodeMap.set(prefix.trim().toUpperCase(), code.trim())
+        filteredData = filteredData.map(row => {
+          const prefix = getPostalPrefix(row.postal_code)
+          const code = areaCodeMap[prefix] || ""
+          if (!code) console.warn(`🚫 No match for "${prefix}"`)
+          else console.log(`✅ Match "${prefix}" = "${code}"`)
+          return {
+            ...row,
+            ["enrich area codes"]: code,
           }
         })
 
-const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
-
-        filteredData = filteredData.map(row => ({
-          ...row,
-          ["enrich area codes"]: areaCodeMap.get(getPostalPrefix(row.postal_code)) || "",
-        }))
+        toast({ title: "Area Codes Enriched", description: "Postcode prefixes mapped to area codes." })
       } catch (err) {
-        console.error("❌ Failed to enrich area codes:", err)
+        console.error("❌ Area code enrichment error:", err)
         toast({
-          title: "Enrichment failed",
-          description: "Could not enrich area codes from XLSX file.",
+          title: "Area Code Enrichment Failed",
+          description: "Check logs for missing matches.",
           variant: "destructive",
         })
       }
@@ -161,4 +155,3 @@ const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().
     toast({ title: "Process error", description: "Check console for details.", variant: "destructive" })
   }
 }
-
