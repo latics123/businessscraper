@@ -41,18 +41,15 @@ export async function loadEnrichAreaCodesFromURL(
   const map: Record<string, string> = {}
 
   for (const row of rows) {
-    const rawPostcode = String(row["postcode"] || "")
-      .split(" ")[0]
-      .trim()
-      .toUpperCase()
+    const postcode = String(row["postcode"] || "").trim().toUpperCase()
+    const prefix = postcode.split(" ")[0]  // Safe split
     const areaCode = String(row["telephone area code"] || "").trim()
-
-    if (rawPostcode && areaCode) {
-      map[rawPostcode] = areaCode
+    if (prefix && areaCode) {
+      map[prefix] = areaCode
     }
   }
 
-  console.log("✅ Loaded enrich map with", Object.keys(map).length, "entries")
+  console.log("✅ Enrich area code map size:", Object.keys(map).length)
   return map
 }
 
