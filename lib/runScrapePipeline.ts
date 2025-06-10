@@ -54,7 +54,7 @@ export async function runScrapePipeline({
     // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
       try {
-        const res = await fetch("/enrich-area-codes.xlsx")
+        const res = await fetch("public/enrich-area-codes.xlsx")
         const arrayBuffer = await res.arrayBuffer()
         const workbook = XLSX.read(arrayBuffer, { type: "array" })
         const sheet = workbook.Sheets[workbook.SheetNames[0]]
@@ -69,8 +69,7 @@ export async function runScrapePipeline({
           }
         })
 
-        const getPostalPrefix = (postal: string) =>
-          (postal || "").split(" ")[0].toUpperCase()
+const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].trim().toUpperCase()
 
         filteredData = filteredData.map(row => ({
           ...row,

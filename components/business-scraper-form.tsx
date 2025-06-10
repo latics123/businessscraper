@@ -1099,7 +1099,7 @@ max={useRecurringSettings ? 1000 : 5}
             <tr>
               <th className="px-4 py-2 text-left font-medium">Date</th>
               <th className="px-4 py-2 text-left font-medium">Time</th>
-              <th className="px-4 py-2 text-left font-medium">Recurring Days</th>
+              <th className="px-4 py-2 text-left font-medium">Day</th>
               <th className="px-4 py-2 text-left font-medium">City</th>
               <th className="px-4 py-2 text-left font-medium">Type</th>
               <th className="px-4 py-2 text-left font-medium">Limit</th>
