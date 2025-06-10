@@ -217,11 +217,12 @@ async function runRecurringScrapes() {
         }
       }
 
-      await supabase
-        .from("recurring_scrapes")
-        .update({ skip_times: (schedule.skip_times || 0) + 1 })
-        .eq("id", schedule.id)
-
+if (!schedule.one_time) {
+  await supabase
+    .from("recurring_scrapes")
+    .update({ skip_times: (schedule.skip_times || 0) + 1 })
+    .eq("id", schedule.id)
+}
     } catch (err) {
       console.error(`❌ Error in schedule ID ${schedule.id}`, err)
       await postSlackMessage(`❌ Scrape failed for schedule ID ${schedule.id}.`, slackBotToken, slackChannelId)
