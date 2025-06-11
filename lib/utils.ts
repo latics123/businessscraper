@@ -377,7 +377,7 @@ const updatedWithEmails = withEmails.map((entry) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: `✅ Manual verification complete.\n📎 [Download XLSX](${fileUrl}) – ${updatedWithEmails.length} rows.`,
+          message: `✅ Manual verification complete.\n📎 [Download XLSXXX](${fileUrl}) – ${updatedWithEmails.length} rows.`,
           rows: updatedWithEmails, // 👈 send the data here
         }),
       })
