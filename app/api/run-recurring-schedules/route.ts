@@ -28,10 +28,16 @@ interface MillionVerifierResponse {
 }
 
 const enrichAreaCodeMap: Record<string, string> = {}
-for (const entry of data) {
-  const prefix = String(entry["Postal Prefix"] || "").toUpperCase().trim()
-  enrichAreaCodeMap[prefix] = entry["Telephone Area Code"] || ""
+
+const enrichWorkbook = XLSX.readFile(path.join(process.cwd(), "public", "enrich-area-codes.xlsx"))
+const enrichSheet = enrichWorkbook.Sheets[enrichWorkbook.SheetNames[0]]
+const enrichJson = XLSX.utils.sheet_to_json<Record<string, any>>(enrichSheet)
+
+for (const row of enrichJson) {
+  const postalKey = String(row.postal_code || "").split(" ")[0].toUpperCase().trim()
+  enrichAreaCodeMap[postalKey] = row["telephone area code"] || ""
 }
+
 
 
 const verifyEmail = async (email: string, apiKey: string): Promise<boolean> => {
