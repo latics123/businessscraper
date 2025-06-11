@@ -301,7 +301,7 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         minute,
         recurring_days: [fullDay],
         created_at: now.toISOString(),
-        record_limit: totalLimit,
+        record_limit: batchSize,
         skip_times: i + 1,
         add_to_campaign: formData.addtocampaign,
         city: formData.city,
