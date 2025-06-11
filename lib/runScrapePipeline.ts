@@ -51,9 +51,12 @@ export async function runScrapePipeline({
       return
     }
 
-    let filteredData = formData.phoneFilter === "without_phone"
-      ? businessData.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
-      : businessData
+let filteredData =
+  formData.phoneFilter === "without_phone"
+    ? businessData.filter(item =>
+        !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase())
+      )
+    : businessData.slice() // ✅ this clones the array safely
 
     // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
@@ -91,9 +94,11 @@ export async function runScrapePipeline({
     }
 
     // Save enriched to DB and use it moving forward
-    await supabase.from("saved_json").insert([
-      { json_data: filteredData, verified: false, created_at: new Date().toISOString() }
-    ])
+setBusinessData(filteredData)
+
+await supabase.from("saved_json").insert([
+  { json_data: filteredData, verified: false, created_at: new Date().toISOString() }
+])
 
     // Continue with enriched data
     let verifiedData = filteredData
