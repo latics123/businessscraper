@@ -73,7 +73,7 @@ if (formData.enrichWithAreaCodes) {
       else console.log(`✅ Match "${prefix}" = "${code}"`)
       return {
         ...row,
-        ["enrich_area_codes"]: code,
+        enrich_area_codes: code,
       }
     })
 
