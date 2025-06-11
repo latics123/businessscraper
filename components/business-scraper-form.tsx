@@ -269,6 +269,10 @@ const [typeFilter, setTypeFilter] = useState<"all" | "recurring" | "one-time">("
 
 // ✅ ADD RECURRING SCHEDULE
 const handleAddRecurring = async ({ immediate = false } = {}) => {
+    if (formData.enrichWithAreaCodes) {
+    await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
+  }
+
   const totalLimit = formData.limit
   const batchSize = 100
   const batchCount = Math.ceil(totalLimit / batchSize)
@@ -338,9 +342,6 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
       description: `Scrape is queued to run in ~1 minute.`,
       variant: "success",
     })
-if (formData.enrichWithAreaCodes) {
-  await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
-}
 
     // ✅ Run the pipeline logic directly (no XLSX download)
     await runScrapePipeline({
