@@ -55,7 +55,7 @@ export function convertJsonToCsv(jsonData: any[], filename: string) {
 
   const columnOrder = [
     "display_name", "types", "type", "country_code", "state", "city", "county", "street", "postal_code",
-    "enrich area codes", "address", "latitude", "longitude", "phone", "phone_type", "linkedin", "facebook", "twitter",
+    "enrich_area_codes", "address", "latitude", "longitude", "phone", "phone_type", "linkedin", "facebook", "twitter",
     "instagram", "tiktok", "whatsapp", "youtube", "site", "site_generator", "photo", "photos_count", "rating",
     "rating_history", "reviews", "reviews_link", "range", "business_status", "business_status_history",
     "booking_appointment_link", "menu_link", "verified", "owner_title", "located_in", "os_id", "google_id", "place_id",
