@@ -6,6 +6,8 @@ import axios from "axios"
 import * as XLSX from "xlsx"
 import { createClient } from "@supabase/supabase-js"
 import { InstantlyAPI } from "@/lib/instantly"
+import * as fs from "fs"
+import * as path from "path"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -84,8 +86,8 @@ async function runRecurringScrapes() {
   const slackChannelId = settings.slackChannelId
 
   // 📦 Load area code enrichment mapping
-  const enrichResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/enrich-area-codes.xlsx`)
-  const enrichBuffer = await enrichResponse.arrayBuffer()
+const enrichFilePath = path.join(process.cwd(), "public", "enrich-area-codes.xlsx")
+const enrichBuffer = fs.readFileSync(enrichFilePath)
   const enrichWorkbook = XLSX.read(enrichBuffer, { type: "array" })
   const enrichSheet = enrichWorkbook.Sheets[enrichWorkbook.SheetNames[0]]
   const enrichData = XLSX.utils.sheet_to_json(enrichSheet)
