@@ -313,13 +313,14 @@ export async function convertAndVerifyJson(
   const validationMap = Object.fromEntries(
     verifiedResults.map(({ email, is_email_valid }) => [email.toLowerCase(), is_email_valid])
   )
-  const updatedWithEmails = withEmails.map((row) => {
-    const email = (row.email as string)?.toLowerCase?.() ?? ""
-    return {
-      ...row,
-      is_email_valid: validationMap[email] ?? false,
-    }
-  })
+const updatedWithEmails = withEmails.map((row) => {
+  const email = (row.email as string)?.toLowerCase?.() ?? ""
+  const copy = { ...row }
+  const postalKey = String(copy.postal_code || "").split(" ")[0].toUpperCase().trim()
+  copy.enrich_area_codes = enrichAreaCodeMap[postalKey] || ""
+  copy.is_email_valid = validationMap[email] ?? false
+  return copy
+})
   // :white_check_mark: Save to Supabase for server-side full verification later
   try {
     const { error } = await supabase.from("saved_json").insert([
