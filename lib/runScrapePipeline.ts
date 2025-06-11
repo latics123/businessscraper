@@ -9,6 +9,7 @@ import {
 } from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
+import { areaCodeMap } from "@/lib/area-code-map" // ← Add this at the top
 
 export async function runScrapePipeline({
   formData,
@@ -59,39 +60,36 @@ export async function runScrapePipeline({
         : businessData.slice() // ✅ clone to avoid mutating original
 
     // 🧠 Enrich with area codes via XLSX map
-    if (formData.enrichWithAreaCodes) {
-      try {
-        const areaCodeMap = await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
-        console.log("📍 Area code map loaded:", Object.keys(areaCodeMap).length)
+if (formData.enrichWithAreaCodes) {
+  try {
+    const getPostalPrefix = (postal: string) =>
+      (postal || "").split(" ")[0].trim().toUpperCase()
 
-        const getPostalPrefix = (postal: string) =>
-          (postal || "").split(" ")[0].trim().toUpperCase()
-
-        filteredData = filteredData.map(row => {
-          const prefix = getPostalPrefix(row.postal_code)
-          const code = areaCodeMap[prefix] || ""
-          console.log("🔍 Postal:", row.postal_code, "| Prefix:", prefix, "| Match:", code)
-          if (!code) console.warn(`🚫 No match for "${prefix}"`)
-          else console.log(`✅ Match "${prefix}" = "${code}"`)
-          return {
-            ...row,
-            ["enrich area codes"]: code,
-          }
-        })
-
-        toast({
-          title: "Area Codes Enriched",
-          description: "Postcode prefixes successfully mapped to area codes.",
-        })
-      } catch (err) {
-        console.error("❌ Area code enrichment error:", err)
-        toast({
-          title: "Area Code Enrichment Failed",
-          description: "Check logs for details.",
-          variant: "destructive",
-        })
+    filteredData = filteredData.map(row => {
+      const prefix = getPostalPrefix(row.postal_code)
+      const code = areaCodeMap[prefix] || ""
+      console.log("🔍 Postal:", row.postal_code, "| Prefix:", prefix, "| Match:", code)
+      if (!code) console.warn(`🚫 No match for "${prefix}"`)
+      else console.log(`✅ Match "${prefix}" = "${code}"`)
+      return {
+        ...row,
+        ["enrich area codes"]: code,
       }
-    }
+    })
+
+    toast({
+      title: "Area Codes Enriched",
+      description: "Postcode prefixes successfully mapped to area codes.",
+    })
+  } catch (err) {
+    console.error("❌ Area code enrichment error:", err)
+    toast({
+      title: "Area Code Enrichment Failed",
+      description: "Check logs for details.",
+      variant: "destructive",
+    })
+  }
+}
 
     setBusinessData(filteredData)
 
