@@ -70,7 +70,7 @@ const defaultFormData = {
   fromDate: "",
   toDate: "",
   country: "US",
-  city: "New York",
+city: null as string | null,
   state: "NY",
   postalCode: "",
   businessType: "restaurant",
@@ -671,12 +671,13 @@ async function handleEmailFileVerification(file: File) {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="city">City</Label>
-                    <Input
-                      id="city"
-                      value={formData.city}
-                      onChange={(e) => handleChange("city", e.target.value)}
-                      placeholder="e.g. New York"
-                    />
+                  <Input
+  id="city"
+  value={formData.city ?? ""}
+  onChange={(e) => handleChange("city", e.target.value)}
+  placeholder="e.g. New York"
+/>
+
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="state">State</Label>
