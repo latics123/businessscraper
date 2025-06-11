@@ -5,7 +5,7 @@ import { DateTime } from "luxon"
 import axios from "axios"
 import * as XLSX from "xlsx"
 import { createClient } from "@supabase/supabase-js"
-import { InstantlyAPI } from "@/lib/instantly" // Make sure this exists and works server-side
+import { InstantlyAPI } from "@/lib/instantly"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,6 +26,13 @@ interface MillionVerifierResponse {
   status: string
   result: string
 }
+
+const enrichAreaCodeMap: Record<string, string> = {}
+for (const entry of data) {
+  const prefix = String(entry["Postal Prefix"] || "").toUpperCase().trim()
+  enrichAreaCodeMap[prefix] = entry["Telephone Area Code"] || ""
+}
+
 
 const verifyEmail = async (email: string, apiKey: string): Promise<boolean> => {
   try {
@@ -144,7 +151,9 @@ async function runRecurringScrapes() {
             row.email_first_name = entry[first] ?? ""
             row.email_last_name = entry[last] ?? ""
             row.is_email_valid = isValid ? "TRUE" : "FALSE"
-            rows.push(row)
+const postalKey = String(entry.postal_code || "").split(" ")[0].toUpperCase().trim()
+row["enrich_area_codes"] = enrichAreaCodeMap[postalKey] || ""
+rows.push(row)
 
             // ✅ Push to Instantly if valid and enabled
             if (isValid && schedule.connect_cold_email) {
@@ -169,7 +178,9 @@ async function runRecurringScrapes() {
           row.email_first_name = ""
           row.email_last_name = ""
           row.is_email_valid = "FALSE"
-          rows.push(row)
+const postalKey = String(entry.postal_code || "").split(" ")[0].toUpperCase().trim()
+row["enrich_area_codes"] = enrichAreaCodeMap[postalKey] || ""
+rows.push(row)
         }
       }
 
