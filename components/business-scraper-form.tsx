@@ -852,11 +852,16 @@ max={useRecurringSettings ? 1000 : 5}
     <Checkbox
       id="addtocampaign"
       checked={formData.addtocampaign}
-      onCheckedChange={(checked) => {
-        if (typeof checked === "boolean") {
-          handleChange("addtocampaign", checked)
-        }
-      }}
+onCheckedChange={(checked) => {
+  if (typeof checked === "boolean") {
+    handleChange("addtocampaign", checked)
+    if (!checked) {
+      handleChange("instantlyListId", "")
+      handleChange("instantlyCampaignId", "")
+      handleChange("instProfileId", "")
+    }
+  }
+}}
     />
     <Label htmlFor="addtocampaign" className="cursor-pointer flex items-center gap-2">
       <Plus className="h-4 w-4" />

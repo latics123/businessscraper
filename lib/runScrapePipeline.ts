@@ -63,7 +63,6 @@ if (formData.enrichWithAreaCodes) {
     filteredData = filteredData.map(row => {
       const prefix = getPostalPrefix(row.postal_code)
       const code = areaCodeMap[prefix] || ""
-      console.log("🔍 Postal:", row.postal_code, "| Prefix:", prefix, "| Match:", code)
       if (!code) console.warn(`🚫 No match for "${prefix}"`)
       else console.log(`✅ Match "${prefix}" = "${code}"`)
       return {
@@ -126,7 +125,7 @@ if (
   formData.addtocampaign &&
   formData.connectColdEmail &&
   formData.instantlyApiKey &&
-  formData.instantlyCampaignId && // 👈 make sure a profile is selected
+  formData.instantlyCampaignId && 
   formData.instantlyListId
 ) {
   const validLeads = verifiedData
