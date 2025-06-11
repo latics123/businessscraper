@@ -51,14 +51,14 @@ export async function runScrapePipeline({
       return
     }
 
-let filteredData =
-  formData.phoneFilter === "without_phone"
-    ? businessData.filter(item =>
-        !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase())
-      )
-    : businessData.slice() // ✅ this clones the array safely
+    let filteredData =
+      formData.phoneFilter === "without_phone"
+        ? businessData.filter(item =>
+            !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase())
+          )
+        : businessData.slice() // ✅ clone to avoid mutating original
 
-    // ✅ Enrich with area codes if enabled
+    // 🧠 Enrich with area codes via XLSX map
     if (formData.enrichWithAreaCodes) {
       try {
         const areaCodeMap = await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
@@ -93,18 +93,14 @@ let filteredData =
       }
     }
 
-    // Save enriched to DB and use it moving forward
-setBusinessData(filteredData)
-
-await supabase.from("saved_json").insert([
-  { json_data: filteredData, verified: false, created_at: new Date().toISOString() }
-])
-
-    // Continue with enriched data
-    let verifiedData = filteredData
     setBusinessData(filteredData)
 
-    // ✅ Email verification
+    await supabase.from("saved_json").insert([
+      { json_data: filteredData, verified: false, created_at: new Date().toISOString() }
+    ])
+
+    let verifiedData = filteredData
+
     if (formData.verifyEmails && formData.connectEmailVerification && formData.millionApiKey) {
       const hasEmails = filteredData.some(i => i.email || i.email_1 || i.email_2 || i.email_3)
       if (hasEmails) {
@@ -117,17 +113,17 @@ await supabase.from("saved_json").insert([
       }
     }
 
-    // ✅ Optional local file downloads
+    // Optional local download
     if (downloadFiles) {
       downloadJsonAsFile(verifiedData, formData.jsonFileName)
       convertJsonToCsv(verifiedData, formData.csvFileName)
       toast({ title: "Files downloaded", description: "Local downloads completed." })
     }
 
-    // ✅ Optional Telegram notification
+    // Optional Telegram push
     if (sendToTelegram && formData.telegramBotToken && formData.telegramChatId) {
       await sendTelegramMessage(
-        `<b>Business Scraper Results</b>\n\nFound ${verifiedData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
+        `<b>Business Scraper Results</b>\n\nFound ${filteredData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
         { botToken: formData.telegramBotToken, chatId: formData.telegramChatId }
       )
       await sendTelegramFile(JSON.stringify(verifiedData, null, 2), formData.jsonFileName, {
@@ -136,7 +132,7 @@ await supabase.from("saved_json").insert([
       })
     }
 
-    // ✅ Optional Instantly upload
+    // Optional Instantly upload
     if (
       uploadToInstantlyEnabled &&
       formData.addtocampaign &&
