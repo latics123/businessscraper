@@ -3,9 +3,6 @@ import { supabase } from "@/lib/supabase"
 import { verifyEmails } from "@/actions/million-verifier"
 import {
   convertAndVerifyJson,
-  downloadJsonAsFile,
-  convertJsonToCsv,
-  loadEnrichAreaCodesFromURL,
 } from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
@@ -13,14 +10,12 @@ import { areaCodeMap } from "@/lib/area-code-map" // ← Add this at the top
 
 export async function runScrapePipeline({
   formData,
-  downloadFiles = false,
   uploadToInstantlyEnabled = true,
   sendToTelegram = true,
   setBusinessData,
   toast,
 }: {
   formData: any
-  downloadFiles?: boolean
   uploadToInstantlyEnabled?: boolean
   sendToTelegram?: boolean
   setBusinessData: (data: any[]) => void
@@ -111,12 +106,7 @@ if (formData.enrichWithAreaCodes) {
       }
     }
 
-    // Optional local download
-    if (downloadFiles) {
-      downloadJsonAsFile(verifiedData, formData.jsonFileName)
-      convertJsonToCsv(verifiedData, formData.csvFileName)
-      toast({ title: "Files downloaded", description: "Local downloads completed." })
-    }
+
 
     // Optional Telegram push
     if (sendToTelegram && formData.telegramBotToken && formData.telegramChatId) {
