@@ -121,42 +121,43 @@ if (formData.enrichWithAreaCodes) {
     }
 
     // Optional Instantly upload
-    if (
-      uploadToInstantlyEnabled &&
-      formData.addtocampaign &&
-      formData.connectColdEmail &&
-      formData.instantlyApiKey &&
-      formData.instantlyCampaignId
-    ) {
-      const validLeads = verifiedData
-        .filter(i => i.is_email_valid && i.email?.includes("@"))
-        .map(i => ({
-          email: i.email.trim(),
-          first_name: i.email_first_name || i.email.split("@")[0] || "Unknown",
-          last_name: i.email_last_name || "",
-          custom_variables: {
-            company: i.company_name || i.display_name || "",
-            phone: i.phone || "",
-            city: i.city || "",
-            country: i.country || "",
-            website: i.site || "",
-          },
-        }))
+if (
+  uploadToInstantlyEnabled &&
+  formData.addtocampaign &&
+  formData.connectColdEmail &&
+  formData.instantlyApiKey &&
+  formData.instantlyCampaignId && // 👈 make sure a profile is selected
+  formData.instantlyListId
+) {
+  const validLeads = verifiedData
+    .filter(i => i.is_email_valid && i.email?.includes("@"))
+    .map(i => ({
+      email: i.email.trim(),
+      first_name: i.email_first_name || i.email.split("@")[0] || "Unknown",
+      last_name: i.email_last_name || "",
+      custom_variables: {
+        company: i.company_name || i.display_name || "",
+        phone: i.phone || "",
+        city: i.city || "",
+        country: i.country || "",
+        website: i.site || "",
+      },
+    }))
 
-      if (validLeads.length > 0) {
-        await uploadToInstantly(validLeads, {
-          apiKey: formData.instantlyApiKey,
-          listId: formData.instantlyListId,
-          campaignId: formData.instantlyCampaignId,
-        })
-        toast({ title: "Uploaded to Instantly", description: `${validLeads.length} leads uploaded.` })
-      } else {
-        toast({ title: "No valid leads", description: "No verified leads available for Instantly." })
-      }
-    }
+  if (validLeads.length > 0) {
+    await uploadToInstantly(validLeads, {
+      apiKey: formData.instantlyApiKey,
+      listId: formData.instantlyListId,
+      campaignId: formData.instantlyCampaignId,
+    })
+    toast({ title: "Uploaded to Instantly", description: `${validLeads.length} leads uploaded.` })
+  } else {
+    toast({ title: "No valid leads", description: "No verified leads available for Instantly." })
+  }
+}
 
   } catch (err) {
     console.error("❌ Pipeline error:", err)
-    toast({ title: "Process error", description: "Check console for details.", variant: "destructive" })
+    // toast({ title: "Process error", description: "Check console for details.", variant: "destructive" })
   }
 }
