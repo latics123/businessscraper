@@ -186,7 +186,9 @@ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault()
   setIsLoading(true)
   setHasData(false)
-await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
+if (formData.enrichWithAreaCodes) {
+  await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
+}
 
   await runScrapePipeline({
     formData,
@@ -336,7 +338,9 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
       description: `Scrape is queued to run in ~1 minute.`,
       variant: "success",
     })
-await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
+if (formData.enrichWithAreaCodes) {
+  await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
+}
 
     // ✅ Run the pipeline logic directly (no XLSX download)
     await runScrapePipeline({
