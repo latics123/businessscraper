@@ -27,21 +27,23 @@ export function downloadJsonAsFile(data: any, filename: string) {
 
 // Enrich Area Codes
 let enrichAreaCodeMap: Record<string, string> = {}
-export async function loadEnrichAreaCodesFromURL(filePath = "/enrich-area-codes.xlsx") {
-  const res = await fetch(filePath)
-  if (!res.ok) throw new Error(`Failed to load XLSX file: ${res.status}`)
+export async function loadEnrichAreaCodesFromURL(url: string): Promise<Record<string, string>> {
+  const res = await fetch(url)
+  if (!res.ok) throw new Error("Failed to load enrich-area-codes.xlsx")
 
-  const buffer = await res.arrayBuffer()
-  const workbook = XLSX.read(buffer, { type: "array" })
+  const arrayBuffer = await res.arrayBuffer()
+  const workbook = XLSX.read(arrayBuffer, { type: "array" })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
-  const json = XLSX.utils.sheet_to_json(sheet)
+  const rows = XLSX.utils.sheet_to_json(sheet)
 
   const map: Record<string, string> = {}
-  for (const row of json) {
-    const prefix = (row["postal_prefix"] || row["Postal Prefix"] || "").toString().trim().toUpperCase()
-    const code = row["telephone_area_code"] || row["Telephone Area Code"] || ""
-    if (prefix && code) map[prefix] = code
-  }
+  rows.forEach((row: any) => {
+    const postcode = (row["postcode"] || "").toString().split(" ")[0].trim().toUpperCase()
+    const areaCode = (row["telephone area code"] || "").toString().trim()
+    if (postcode && areaCode) {
+      map[postcode] = areaCode
+    }
+  })
 
   return map
 }

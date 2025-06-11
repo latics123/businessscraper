@@ -67,6 +67,7 @@ export async function runScrapePipeline({
         filteredData = filteredData.map(row => {
           const prefix = getPostalPrefix(row.postal_code)
           const code = areaCodeMap[prefix] || ""
+          console.log("🔍 Postal:", row.postal_code, "| Prefix:", prefix, "| Match:", areaCodeMap[prefix])
           if (!code) console.warn(`🚫 No match for "${prefix}"`)
           else console.log(`✅ Match "${prefix}" = "${code}"`)
           return {
