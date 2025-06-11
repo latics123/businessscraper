@@ -5,7 +5,7 @@ import { DateTime } from "luxon"
 import axios from "axios"
 import * as XLSX from "xlsx"
 import { createClient } from "@supabase/supabase-js"
-import { InstantlyAPI } from "@/lib/instantly" // Make sure this exists and works server-side
+import { InstantlyAPI } from "@/lib/instantly"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,11 +42,8 @@ const verifyEmail = async (email: string, apiKey: string): Promise<boolean> => {
   }
 }
 
-
 async function postSlackMessage(text: string, slackBotToken: string, slackChannelId: string) {
   try {
-    console.log("📤 Sending Slack message:", { slackChannelId, text })
-
     const response = await axios.post("https://slack.com/api/chat.postMessage", {
       channel: slackChannelId,
       text,
@@ -60,15 +57,11 @@ async function postSlackMessage(text: string, slackBotToken: string, slackChanne
 
     if (!response.data.ok) {
       console.error("❌ Slack API error:", response.data)
-    } else {
-      console.log("✅ Slack message sent.")
     }
   } catch (err) {
     console.error("❌ Failed to send Slack message:", err)
   }
 }
-
-// ...imports remain unchanged
 
 async function runRecurringScrapes() {
   const now = DateTime.now().setZone("Europe/Tirane")
@@ -90,11 +83,24 @@ async function runRecurringScrapes() {
   const slackBotToken = settings.slackBotToken
   const slackChannelId = settings.slackChannelId
 
+  // 📦 Load area code enrichment mapping
+  const enrichResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL}/enrich-area-codes.xlsx`)
+  const enrichBuffer = await enrichResponse.arrayBuffer()
+  const enrichWorkbook = XLSX.read(enrichBuffer, { type: "array" })
+  const enrichSheet = enrichWorkbook.Sheets[enrichWorkbook.SheetNames[0]]
+  const enrichData = XLSX.utils.sheet_to_json(enrichSheet)
+
+  const enrichMap: Record<string, string> = {}
+  for (const row of enrichData as any[]) {
+    const postcode = (row["postcode"] || "").toString().trim().toUpperCase()
+    const code = (row["telephone area code"] || "").toString().trim()
+    if (postcode && code) enrichMap[postcode] = code
+  }
+
+  const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].toUpperCase()
+
   const dueSchedules = schedules?.filter(
-    (s) =>
-      s.recurring_days?.includes(currentDay) &&
-      s.hour === currentHour &&
-      s.minute === currentMinute
+    (s) => s.recurring_days?.includes(currentDay) && s.hour === currentHour && s.minute === currentMinute
   ) || []
 
   for (const schedule of dueSchedules) {
@@ -131,6 +137,8 @@ async function runRecurringScrapes() {
 
       for (const entry of businessData) {
         let hasEmail = false
+        const enrichCode = enrichMap[getPostalPrefix(entry.postal_code || "")] || ""
+
         for (const [e, title, first, last] of emailKeys) {
           if (entry[e]) {
             hasEmail = true
@@ -139,6 +147,7 @@ async function runRecurringScrapes() {
 
             const row: any = {}
             for (const key of VERIFIED_HEADERS) row[key] = entry[key] ?? ""
+            row.enrich_area_codes = enrichCode
             row.email = entry[e]
             row.email_title = entry[title] ?? ""
             row.email_first_name = entry[first] ?? ""
@@ -146,7 +155,6 @@ async function runRecurringScrapes() {
             row.is_email_valid = isValid ? "TRUE" : "FALSE"
             rows.push(row)
 
-            // ✅ Push to Instantly if valid and enabled
             if (isValid && schedule.connect_cold_email) {
               leadsForInstantly.push({
                 email: entry[e],
@@ -164,6 +172,7 @@ async function runRecurringScrapes() {
         if (!hasEmail) {
           const row: any = {}
           for (const key of VERIFIED_HEADERS) row[key] = entry[key] ?? ""
+          row.enrich_area_codes = enrichCode
           row.email = ""
           row.email_title = ""
           row.email_first_name = ""
@@ -193,28 +202,13 @@ async function runRecurringScrapes() {
         continue
       }
 
-const { data: publicUrlData } = supabaseAdmin
-  .storage
-  .from("scrapes")
-  .getPublicUrl(fileName)
+      const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scrapes/${fileName}`
+      await postSlackMessage(
+        `✅ Scrape complete for *${schedule.city}* (${schedule.business_type}) at ${currentHour}:${currentMinute}.\n📎 [Download XLSX1](${publicUrl}) – ${rows.length} rows.`,
+        slackBotToken,
+        slackChannelId
+      )
 
-const publicUrl = publicUrlData?.publicUrl
-
-const message = `✅ Scrape complete for *${schedule.city}* (${schedule.business_type}) at ${currentHour}:${currentMinute}.\n– ${rows.length} rows.`
-
-await axios.post("https://slack.com/api/chat.postMessage", {
-  channel: slackChannelId,
-  text: `${message}\n\n📎 [Download XLSX2](${publicUrl})`,
-  mrkdwn: true,
-}, {
-  headers: {
-    Authorization: `Bearer ${slackBotToken}`,
-    "Content-Type": "application/json",
-  },
-})
-
-
-      // ✅ Upload to Instantly if requested
       if (schedule.connect_cold_email && leadsForInstantly.length > 0) {
         try {
           const instantly = new InstantlyAPI({
@@ -222,7 +216,6 @@ await axios.post("https://slack.com/api/chat.postMessage", {
             listId: schedule.instantly_list_id,
             campaignId: schedule.instantly_campaign_id,
           })
-
           const uploadRes = await instantly.addLeadsFromData(leadsForInstantly)
           console.log("📤 Instantly upload response:", uploadRes)
         } catch (err) {
@@ -231,12 +224,12 @@ await axios.post("https://slack.com/api/chat.postMessage", {
         }
       }
 
-if (!schedule.one_time) {
-  await supabase
-    .from("recurring_scrapes")
-    .update({ skip_times: (schedule.skip_times || 0) + 1 })
-    .eq("id", schedule.id)
-}
+      if (!schedule.one_time) {
+        await supabase
+          .from("recurring_scrapes")
+          .update({ skip_times: (schedule.skip_times || 0) + 1 })
+          .eq("id", schedule.id)
+      }
     } catch (err) {
       console.error(`❌ Error in schedule ID ${schedule.id}`, err)
       await postSlackMessage(`❌ Scrape failed for schedule ID ${schedule.id}.`, slackBotToken, slackChannelId)
@@ -246,9 +239,6 @@ if (!schedule.one_time) {
   return NextResponse.json({ message: "✅ Done processing schedules" })
 }
 
-
-
-// 👇 Support both GET and POST
 export async function GET() {
   return runRecurringScrapes()
 }
@@ -268,25 +258,19 @@ export async function POST(req: NextRequest) {
         const res = await fetch(
           `https://api.millionverifier.com/api/v3/?api=${encodeURIComponent(apiKey)}&email=${encodeURIComponent(email)}`
         )
-
         const data = await res.json()
         const isValid =
           ["ok", "valid", "catch_all"].includes(data.result?.toLowerCase?.()) &&
           data.quality?.toLowerCase?.() !== "risky"
-
         results.push({ email, is_email_valid: isValid })
       } catch (error) {
-        console.error("❌ Email verification error:", email, error)
         results.push({ email, is_email_valid: false })
       }
-
-      // Respect API rate limits
       await new Promise((r) => setTimeout(r, 300))
     }
 
     return NextResponse.json(results)
   } catch (error) {
-    console.error("❌ Error in /api/verify-email:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
