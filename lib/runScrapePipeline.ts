@@ -52,32 +52,41 @@ export async function runScrapePipeline({
       : data
 
     // ✅ Enrich with area codes using static map
-    if (formData.enrichWithAreaCodes) {
-      try {
-        const getPostalPrefix = (postal: string) =>
-          (postal || "").split(" ")[0].trim().toUpperCase()
+if (formData.enrichWithAreaCodes) {
+  try {
+    const getPostalPrefix = (postal: string): string =>
+      (postal || "").split(" ")[0].trim().toUpperCase()
 
-        filteredData = filteredData.map(row => {
-          const prefix = getPostalPrefix(row.postal_code)
-          const code = areaCodeMap[prefix] || ""
-          if (!code) console.warn(`🚫 No match for "${prefix}"`)
-          else console.log(`✅ Match "${prefix}" = "${code}"`)
-          return {
-            ...row,
-            ["enrich area codes"]: code,
-          }
-        })
+    filteredData = filteredData.map(row => {
+      const postalCode = row.postal_code || ""
+      const prefix = getPostalPrefix(postalCode)
+      const code = areaCodeMap[prefix] || ""
 
-        toast({ title: "Area Codes Enriched", description: "Postcode prefixes mapped to area codes." })
-      } catch (err) {
-        console.error("❌ Area code enrichment error:", err)
-        toast({
-          title: "Area Code Enrichment Failed",
-          description: "Check logs for missing matches.",
-          variant: "destructive",
-        })
+      if (!code) {
+        console.warn(`🚫 No match for prefix "${prefix}" from postal code "${postalCode}"`)
+      } else {
+        console.log(`✅ Match: "${prefix}" → "${code}"`)
       }
-    }
+
+      return {
+        ...row,
+        ["enrich area codes"]: code,
+      }
+    })
+
+    toast({
+      title: "Area Codes Enriched",
+      description: "Postcode prefixes successfully mapped to area codes.",
+    })
+  } catch (err) {
+    console.error("❌ Area code enrichment error:", err)
+    toast({
+      title: "Area Code Enrichment Failed",
+      description: "Check logs for details.",
+      variant: "destructive",
+    })
+  }
+}
 
     setBusinessData(filteredData)
 
