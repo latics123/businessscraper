@@ -5,8 +5,7 @@ import { DateTime } from "luxon"
 import axios from "axios"
 import * as XLSX from "xlsx"
 import { createClient } from "@supabase/supabase-js"
-import { InstantlyAPI } from "@/lib/instantly"
-import path from "path"
+import { InstantlyAPI } from "@/lib/instantly" // Make sure this exists and works server-side
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,19 +26,6 @@ interface MillionVerifierResponse {
   status: string
   result: string
 }
-
-const enrichAreaCodeMap: Record<string, string> = {}
-
-const enrichWorkbook = XLSX.readFile(path.join(process.cwd(), "public", "enrich-area-codes.xlsx"))
-const enrichSheet = enrichWorkbook.Sheets[enrichWorkbook.SheetNames[0]]
-const enrichJson = XLSX.utils.sheet_to_json<Record<string, any>>(enrichSheet)
-
-for (const row of enrichJson) {
-  const postalKey = String(row.postal_code || "").split(" ")[0].toUpperCase().trim()
-  enrichAreaCodeMap[postalKey] = row["telephone area code"] || ""
-}
-
-
 
 const verifyEmail = async (email: string, apiKey: string): Promise<boolean> => {
   try {
@@ -158,9 +144,7 @@ async function runRecurringScrapes() {
             row.email_first_name = entry[first] ?? ""
             row.email_last_name = entry[last] ?? ""
             row.is_email_valid = isValid ? "TRUE" : "FALSE"
-const postalKey = String(entry.postal_code || "").split(" ")[0].toUpperCase().trim()
-row["enrich_area_codes"] = enrichAreaCodeMap[postalKey] || ""
-rows.push(row)
+            rows.push(row)
 
             // ✅ Push to Instantly if valid and enabled
             if (isValid && schedule.connect_cold_email) {
@@ -185,9 +169,7 @@ rows.push(row)
           row.email_first_name = ""
           row.email_last_name = ""
           row.is_email_valid = "FALSE"
-const postalKey = String(entry.postal_code || "").split(" ")[0].toUpperCase().trim()
-row["enrich_area_codes"] = enrichAreaCodeMap[postalKey] || ""
-rows.push(row)
+          rows.push(row)
         }
       }
 
@@ -211,12 +193,26 @@ rows.push(row)
         continue
       }
 
-      const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scrapes/${fileName}`
-      await postSlackMessage(
-        `✅ Scrape complete for *${schedule.city}* (${schedule.business_type}) at ${currentHour}:${currentMinute}.\n📎 [Download XLSX1](${publicUrl}) – ${rows.length} rows.`,
-        slackBotToken,
-        slackChannelId
-      )
+const { data: publicUrlData } = supabaseAdmin
+  .storage
+  .from("scrapes")
+  .getPublicUrl(fileName)
+
+const publicUrl = publicUrlData?.publicUrl
+
+const message = `✅ Scrape complete for *${schedule.city}* (${schedule.business_type}) at ${currentHour}:${currentMinute}.\n– ${rows.length} rows.`
+
+await axios.post("https://slack.com/api/chat.postMessage", {
+  channel: slackChannelId,
+  text: `${message}\n\n📎 [Download XLSX2](${publicUrl})`,
+  mrkdwn: true,
+}, {
+  headers: {
+    Authorization: `Bearer ${slackBotToken}`,
+    "Content-Type": "application/json",
+  },
+})
+
 
       // ✅ Upload to Instantly if requested
       if (schedule.connect_cold_email && leadsForInstantly.length > 0) {
