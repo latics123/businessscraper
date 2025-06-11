@@ -27,31 +27,25 @@ export function downloadJsonAsFile(data: any, filename: string) {
 
 // Enrich Area Codes
 let enrichAreaCodeMap: Record<string, string> = {}
-export async function loadEnrichAreaCodesFromURL(
-  url: string = "/enrich-area-codes.xlsx"
-): Promise<Record<string, string>> {
-  const response = await fetch(url)
-  if (!response.ok) throw new Error(`Failed to load enrich file: ${response.statusText}`)
+export async function loadEnrichAreaCodesFromURL(filePath = "/enrich-area-codes.xlsx") {
+  const res = await fetch(filePath)
+  if (!res.ok) throw new Error(`Failed to load XLSX file: ${res.status}`)
 
-  const arrayBuffer = await response.arrayBuffer()
-  const workbook = XLSX.read(arrayBuffer, { type: "array" })
+  const buffer = await res.arrayBuffer()
+  const workbook = XLSX.read(buffer, { type: "array" })
   const sheet = workbook.Sheets[workbook.SheetNames[0]]
-  const rows: any[] = XLSX.utils.sheet_to_json(sheet)
+  const json = XLSX.utils.sheet_to_json(sheet)
 
   const map: Record<string, string> = {}
-
-  for (const row of rows) {
-    const postcode = String(row["postcode"] || "").trim().toUpperCase()
-    const prefix = postcode.split(" ")[0]  // Safe split
-    const areaCode = String(row["telephone area code"] || "").trim()
-    if (prefix && areaCode) {
-      map[prefix] = areaCode
-    }
+  for (const row of json) {
+    const prefix = (row["postal_prefix"] || row["Postal Prefix"] || "").toString().trim().toUpperCase()
+    const code = row["telephone_area_code"] || row["Telephone Area Code"] || ""
+    if (prefix && code) map[prefix] = code
   }
 
-  console.log("✅ Enrich area code map size:", Object.keys(map).length)
   return map
 }
+
 
 // XLSX Export
 export function convertJsonToCsv(jsonData: any[], filename: string) {
@@ -412,19 +406,4 @@ export async function convertAndVerifyJson(
 
 
 
-export function applyEnrichAreaCodes(data: any[]): any[] {
-  const getPostalPrefix = (postal: string) => {
-    if (!postal) return ""
-    const upper = postal.trim().toUpperCase()
-    const match = upper.match(/^[A-Z]+\d+[A-Z]?/)
-    return match ? match[0] : upper.split(" ")[0]
-  }
 
-  return data.map(row => {
-    const prefix = getPostalPrefix(row.postal_code)
-    return {
-      ...row,
-      ["enrich area codes"]: enrichAreaCodeMap[prefix] || "",
-    }
-  })
-}

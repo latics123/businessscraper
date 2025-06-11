@@ -1,10 +1,14 @@
 import { fetchBusinessData } from "@/actions/targetron"
 import { supabase } from "@/lib/supabase"
 import { verifyEmails } from "@/actions/million-verifier"
-import { convertAndVerifyJson, downloadJsonAsFile, convertJsonToCsv } from "@/lib/utils"
+import {
+  convertAndVerifyJson,
+  downloadJsonAsFile,
+  convertJsonToCsv,
+  loadEnrichAreaCodesFromURL,
+} from "@/lib/utils"
 import { sendTelegramMessage, sendTelegramFile } from "@/actions/telegram"
 import { uploadToInstantly } from "@/actions/instantly"
-import { areaCodeMap } from "@/lib/area-code-map"
 
 export async function runScrapePipeline({
   formData,
@@ -24,7 +28,7 @@ export async function runScrapePipeline({
   try {
     toast({ title: "Starting data collection", description: "Fetching business data from Targetron API..." })
 
-    const data = await fetchBusinessData({
+    const businessData = await fetchBusinessData({
       apiKey: formData.targetronApiKey,
       country: formData.country,
       city: formData.city,
@@ -42,51 +46,48 @@ export async function runScrapePipeline({
       phoneNumber: formData.phoneFilter === "enter_phone" ? formData.phoneNumber : undefined,
     })
 
-    if (!data || data.length === 0) {
+    if (!businessData || businessData.length === 0) {
       toast({ title: "No data found", description: "No business data matched the criteria.", variant: "destructive" })
       return
     }
 
     let filteredData = formData.phoneFilter === "without_phone"
-      ? data.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
-      : data
+      ? businessData.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
+      : businessData
 
-    // ✅ Enrich with area codes using static map
-if (formData.enrichWithAreaCodes) {
-  try {
-    const getPostalPrefix = (postal: string): string =>
-      (postal || "").split(" ")[0].trim().toUpperCase()
+    // 🧠 Enrich with area codes via XLSX map
+    if (formData.enrichWithAreaCodes) {
+      try {
+        const areaCodeMap = await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
+        console.log("📍 Area code map loaded:", Object.keys(areaCodeMap).length)
 
-    filteredData = filteredData.map(row => {
-      const postalCode = row.postal_code || ""
-      const prefix = getPostalPrefix(postalCode)
-      const code = areaCodeMap[prefix] || ""
+        const getPostalPrefix = (postal: string) =>
+          (postal || "").split(" ")[0].trim().toUpperCase()
 
-      if (!code) {
-        console.warn(`🚫 No match for prefix "${prefix}" from postal code "${postalCode}"`)
-      } else {
-        console.log(`✅ Match: "${prefix}" → "${code}"`)
+        filteredData = filteredData.map(row => {
+          const prefix = getPostalPrefix(row.postal_code)
+          const code = areaCodeMap[prefix] || ""
+          if (!code) console.warn(`🚫 No match for "${prefix}"`)
+          else console.log(`✅ Match "${prefix}" = "${code}"`)
+          return {
+            ...row,
+            ["enrich area codes"]: code,
+          }
+        })
+
+        toast({
+          title: "Area Codes Enriched",
+          description: "Postcode prefixes successfully mapped to area codes.",
+        })
+      } catch (err) {
+        console.error("❌ Area code enrichment error:", err)
+        toast({
+          title: "Area Code Enrichment Failed",
+          description: "Check logs for details.",
+          variant: "destructive",
+        })
       }
-
-      return {
-        ...row,
-        ["enrich area codes"]: code,
-      }
-    })
-
-    toast({
-      title: "Area Codes Enriched",
-      description: "Postcode prefixes successfully mapped to area codes.",
-    })
-  } catch (err) {
-    console.error("❌ Area code enrichment error:", err)
-    toast({
-      title: "Area Code Enrichment Failed",
-      description: "Check logs for details.",
-      variant: "destructive",
-    })
-  }
-}
+    }
 
     setBusinessData(filteredData)
 
@@ -108,12 +109,14 @@ if (formData.enrichWithAreaCodes) {
       }
     }
 
-    // if (downloadFiles) {
-    //   downloadJsonAsFile(verifiedData, formData.jsonFileName)
-    //   convertJsonToCsv(verifiedData, formData.csvFileName)
-    //   toast({ title: "Files downloaded", description: "Local downloads completed." })
-    // }
+    // Optional local download
+    if (downloadFiles) {
+      downloadJsonAsFile(verifiedData, formData.jsonFileName)
+      convertJsonToCsv(verifiedData, formData.csvFileName)
+      toast({ title: "Files downloaded", description: "Local downloads completed." })
+    }
 
+    // Optional Telegram push
     if (sendToTelegram && formData.telegramBotToken && formData.telegramChatId) {
       await sendTelegramMessage(
         `<b>Business Scraper Results</b>\n\nFound ${filteredData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
@@ -125,6 +128,7 @@ if (formData.enrichWithAreaCodes) {
       })
     }
 
+    // Optional Instantly upload
     if (
       uploadToInstantlyEnabled &&
       formData.addtocampaign &&

@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { saveSettings, loadSettings } from "@/lib/settings-storage"
 import { downloadJsonAsFile, convertJsonToCsv } from "@/lib/utils"
-import { loadEnrichAreaCodesFromURL, applyEnrichAreaCodes } from "@/lib/utils"
+import { loadEnrichAreaCodesFromURL } from "@/lib/utils"
 import { supabase } from "@/lib/supabase"
 import { fetchRecurringSchedules } from "@/lib/utils" // adjust path
 import { useRouter } from "next/navigation"
@@ -196,11 +196,6 @@ await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
     setBusinessData,
     toast,
   })
-if (formData.enrichWithAreaCodes) {
-  setBusinessData(prev =>
-    applyEnrichAreaCodes(prev)
-  )
-}
 
   setIsLoading(false)
   setHasData(true)
@@ -352,11 +347,6 @@ await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
       setBusinessData,
       toast,
     })
-if (formData.enrichWithAreaCodes) {
-  setBusinessData(prev =>
-    applyEnrichAreaCodes(prev)
-  )
-}
 
     return
   }
