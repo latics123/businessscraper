@@ -412,4 +412,19 @@ export async function convertAndVerifyJson(
 
 
 
+export function applyEnrichAreaCodes(data: any[]): any[] {
+  const getPostalPrefix = (postal: string) => {
+    if (!postal) return ""
+    const upper = postal.trim().toUpperCase()
+    const match = upper.match(/^[A-Z]+\d+[A-Z]?/)
+    return match ? match[0] : upper.split(" ")[0]
+  }
 
+  return data.map(row => {
+    const prefix = getPostalPrefix(row.postal_code)
+    return {
+      ...row,
+      ["enrich area codes"]: enrichAreaCodeMap[prefix] || "",
+    }
+  })
+}
