@@ -55,7 +55,7 @@ export async function runScrapePipeline({
       ? businessData.filter(item => !item.phone || ["", "n/a", "na", "none", "-", "--"].includes(item.phone.trim().toLowerCase()))
       : businessData
 
-    // 🧠 Enrich with area codes via XLSX map
+    // ✅ Enrich with area codes if enabled
     if (formData.enrichWithAreaCodes) {
       try {
         const areaCodeMap = await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
@@ -67,7 +67,7 @@ export async function runScrapePipeline({
         filteredData = filteredData.map(row => {
           const prefix = getPostalPrefix(row.postal_code)
           const code = areaCodeMap[prefix] || ""
-          console.log("🔍 Postal:", row.postal_code, "| Prefix:", prefix, "| Match:", areaCodeMap[prefix])
+          console.log("🔍 Postal:", row.postal_code, "| Prefix:", prefix, "| Match:", code)
           if (!code) console.warn(`🚫 No match for "${prefix}"`)
           else console.log(`✅ Match "${prefix}" = "${code}"`)
           return {
@@ -90,14 +90,16 @@ export async function runScrapePipeline({
       }
     }
 
-    setBusinessData(filteredData)
-
+    // Save enriched to DB and use it moving forward
     await supabase.from("saved_json").insert([
       { json_data: filteredData, verified: false, created_at: new Date().toISOString() }
     ])
 
+    // Continue with enriched data
     let verifiedData = filteredData
+    setBusinessData(filteredData)
 
+    // ✅ Email verification
     if (formData.verifyEmails && formData.connectEmailVerification && formData.millionApiKey) {
       const hasEmails = filteredData.some(i => i.email || i.email_1 || i.email_2 || i.email_3)
       if (hasEmails) {
@@ -110,17 +112,17 @@ export async function runScrapePipeline({
       }
     }
 
-    // Optional local download
+    // ✅ Optional local file downloads
     if (downloadFiles) {
       downloadJsonAsFile(verifiedData, formData.jsonFileName)
       convertJsonToCsv(verifiedData, formData.csvFileName)
       toast({ title: "Files downloaded", description: "Local downloads completed." })
     }
 
-    // Optional Telegram push
+    // ✅ Optional Telegram notification
     if (sendToTelegram && formData.telegramBotToken && formData.telegramChatId) {
       await sendTelegramMessage(
-        `<b>Business Scraper Results</b>\n\nFound ${filteredData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
+        `<b>Business Scraper Results</b>\n\nFound ${verifiedData.length} business records for ${formData.businessType} in ${formData.city}, ${formData.state}`,
         { botToken: formData.telegramBotToken, chatId: formData.telegramChatId }
       )
       await sendTelegramFile(JSON.stringify(verifiedData, null, 2), formData.jsonFileName, {
@@ -129,7 +131,7 @@ export async function runScrapePipeline({
       })
     }
 
-    // Optional Instantly upload
+    // ✅ Optional Instantly upload
     if (
       uploadToInstantlyEnabled &&
       formData.addtocampaign &&
