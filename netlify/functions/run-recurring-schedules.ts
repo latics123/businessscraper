@@ -152,7 +152,7 @@ const handler: Handler = async () => {
       const publicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/scrapes/${fileName}`
 
       await postSlackMessage(
-        `✅ Scrape complete for *${schedule.city}* (${schedule.business_type}) at ${currentHour}:${currentMinute}.\n📎 [Download XLSX](${publicUrl}) – ${rows.length} rows.`,
+        `✅ Scrape complete for *${schedule.city}* (${schedule.business_type}) at ${currentHour}:${currentMinute}.\n📎 [Download XLSX3](${publicUrl}) – ${rows.length} rows.`,
         slackBotToken,
         slackChannelId
       )

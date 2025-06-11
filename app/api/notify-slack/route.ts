@@ -78,7 +78,7 @@ export async function POST(req: Request) {
 
     const res = await axios.post("https://slack.com/api/chat.postMessage", {
       channel: slackChannelId,
-      text: `${message}\n\n📎 [Download XLSX](${publicUrl})`,
+      text: `${message}\n\n📎 [Download XLSX2](${publicUrl})`,
       mrkdwn: true,
     }, {
       headers: {
