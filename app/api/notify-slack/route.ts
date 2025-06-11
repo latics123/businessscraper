@@ -76,21 +76,21 @@ export async function POST(req: Request) {
 
     const publicUrl = publicUrlData?.publicUrl
 
-    const res = await axios.post("https://slack.com/api/chat.postMessage", {
-      channel: slackChannelId,
-      text: `${message}\n\n📎 [Download XLSX2](${publicUrl})`,
-      mrkdwn: true,
-    }, {
-      headers: {
-        Authorization: `Bearer ${slackBotToken}`,
-        "Content-Type": "application/json",
-      },
-    })
+    // const res = await axios.post("https://slack.com/api/chat.postMessage", {
+    //   channel: slackChannelId,
+    //   text: `${message}\n\n📎 [Download XLSX2](${publicUrl})`,
+    //   mrkdwn: true,
+    // }, {
+    //   headers: {
+    //     Authorization: `Bearer ${slackBotToken}`,
+    //     "Content-Type": "application/json",
+    //   },
+    // })
 
-    if (!res.data.ok) {
-      console.error("❌ Slack error:", res.data)
-      return NextResponse.json({ error: "Slack message failed" }, { status: 500 })
-    }
+    // if (!res.data.ok) {
+    //   console.error("❌ Slack error:", res.data)
+    //   return NextResponse.json({ error: "Slack message failed" }, { status: 500 })
+    // }
 
     return NextResponse.json({ success: true, publicUrl })
   } catch (err) {

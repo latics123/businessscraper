@@ -371,29 +371,29 @@ const updatedWithEmails = withEmails.map((entry) => {
     console.error(":x: XLSX upload failed:", uploadError)
   }
   // :white_check_mark: Notify Slack
-  if (fileUrl) {
-    try {
-      await fetch("/api/notify-slack", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: `✅ Manual verification complete.\n📎 [Download XLSXXX](${fileUrl}) – ${updatedWithEmails.length} rows.`,
-          rows: updatedWithEmails, // 👈 send the data here
-        }),
-      })
-          } catch (err) {
-      console.error(":x: Slack notification failed:", err)
-    }
-  }
+  // if (fileUrl) {
+  //   try {
+  //     await fetch("/api/notify-slack", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         message: `✅ Manual verification complete.\n📎 [Download XLSXXX](${fileUrl}) – ${updatedWithEmails.length} rows.`,
+  //         rows: updatedWithEmails, // 👈 send the data here
+  //       }),
+  //     })
+  //         } catch (err) {
+  //     console.error(":x: Slack notification failed:", err)
+  //   }
+  // }
   // :white_check_mark: Trigger browser download
-  const xlsxUrl = URL.createObjectURL(xlsxBlob)
-  const a1 = document.createElement("a")
-  a1.href = xlsxUrl
-  a1.download = finalName
-  document.body.appendChild(a1)
-  a1.click()
-  document.body.removeChild(a1)
-  URL.revokeObjectURL(xlsxUrl)
+  // const xlsxUrl = URL.createObjectURL(xlsxBlob)
+  // const a1 = document.createElement("a")
+  // a1.href = xlsxUrl
+  // a1.download = finalName
+  // document.body.appendChild(a1)
+  // a1.click()
+  // document.body.removeChild(a1)
+  // URL.revokeObjectURL(xlsxUrl)
   // :white_check_mark: JSON download
   const jsonBlob = new Blob([JSON.stringify(updatedWithEmails, null, 2)], {
     type: "application/json",
