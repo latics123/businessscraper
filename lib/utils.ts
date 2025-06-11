@@ -107,9 +107,9 @@ function separateEmailData(jsonData: any[]) {
   ]
 
   for (const entry of jsonData) {
-    const copy = { ...entry }
-    const postalKey = String(copy.postal_code || "").split(" ")[0].toUpperCase().trim()
-    copy["enrich area codes"] = enrichAreaCodeMap[postalKey] || ""
+const copy = { ...entry }
+const postalKey = String(copy.postal_code || "").split(" ")[0].toUpperCase().trim()
+copy.enrich_area_codes = enrichAreaCodeMap[postalKey] || ""
     if (copy.phone) copy.phone = String(copy.phone).startsWith("'") ? copy.phone : `'${copy.phone}`
 
     let hasEmail = false
