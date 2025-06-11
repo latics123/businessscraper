@@ -395,17 +395,17 @@ const updatedWithEmails = withEmails.map((entry) => {
   // document.body.removeChild(a1)
   // URL.revokeObjectURL(xlsxUrl)
   // :white_check_mark: JSON download
-  const jsonBlob = new Blob([JSON.stringify(updatedWithEmails, null, 2)], {
-    type: "application/json",
-  })
-  const jsonUrl = URL.createObjectURL(jsonBlob)
-  const a2 = document.createElement("a")
-  a2.href = jsonUrl
-  a2.download = jsonFileName.endsWith(".json") ? jsonFileName : `${jsonFileName}.json`
-  document.body.appendChild(a2)
-  a2.click()
-  document.body.removeChild(a2)
-  URL.revokeObjectURL(jsonUrl)
+  // const jsonBlob = new Blob([JSON.stringify(updatedWithEmails, null, 2)], {
+  //   type: "application/json",
+  // })
+  // const jsonUrl = URL.createObjectURL(jsonBlob)
+  // const a2 = document.createElement("a")
+  // a2.href = jsonUrl
+  // a2.download = jsonFileName.endsWith(".json") ? jsonFileName : `${jsonFileName}.json`
+  // document.body.appendChild(a2)
+  // a2.click()
+  // document.body.removeChild(a2)
+  // URL.revokeObjectURL(jsonUrl)
   return updatedWithEmails
 }
 
