@@ -6,6 +6,7 @@ import axios from "axios"
 import * as XLSX from "xlsx"
 import { createClient } from "@supabase/supabase-js"
 import { InstantlyAPI } from "@/lib/instantly"
+import path from "path"
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
