@@ -28,6 +28,7 @@ import { useUser } from "@/lib/useUser"
 import { HelpDialog } from "@/components/help-dialog"
 import { convertAndVerifyJson } from "@/lib/utils"
 import { runScrapePipeline } from "@/lib/runScrapePipeline"
+import timezones from "@/lib/timezones" // see next section
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const router = useRouter()
@@ -54,6 +55,7 @@ const defaultFormData = {
   instantlyApiKey: "",
   instantlyListId: "",
   instantlyCampaignId: "",
+timeZone: "Europe/London",
 
   // ✅ Add these for profiles
   instProfileId: "",
@@ -577,6 +579,18 @@ async function handleEmailFileVerification(file: File) {
 
     {/* Group buttons on the right */}
     <div className="flex items-center gap-2">
+      <Label htmlFor="timezone">Timezone</Label>
+<select
+  id="timezone"
+  value={formData.timeZone}
+  onChange={(e) => setFormData({ ...formData, timeZone: e.target.value })}
+  className="border rounded px-2 py-1 text-sm"
+>
+  {timezones.map(tz => (
+    <option key={tz} value={tz}>{tz}</option>
+  ))}
+</select>
+
       <Button
         variant="ghost"
         size="sm"

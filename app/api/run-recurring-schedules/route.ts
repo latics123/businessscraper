@@ -66,10 +66,7 @@ async function postSlackMessage(text: string, slackBotToken: string, slackChanne
 }
 
 async function runRecurringScrapes() {
-  const now = DateTime.now().setZone("Europe/Tirane")
-  const currentDay = now.toFormat("cccc")
-  const currentHour = now.hour
-  const currentMinute = now.minute
+  const now = DateTime.now()
 
   const { data: schedules } = await supabase.from("recurring_scrapes").select("*")
   const { data: settingsData } = await supabase
@@ -86,8 +83,8 @@ async function runRecurringScrapes() {
   const slackChannelId = settings.slackChannelId
 
   // 📦 Load area code enrichment mapping
-const enrichFilePath = path.join(process.cwd(), "public", "enrich-area-codes.xlsx")
-const enrichBuffer = fs.readFileSync(enrichFilePath)
+  const enrichFilePath = path.join(process.cwd(), "public", "enrich-area-codes.xlsx")
+  const enrichBuffer = fs.readFileSync(enrichFilePath)
   const enrichWorkbook = XLSX.read(enrichBuffer, { type: "array" })
   const enrichSheet = enrichWorkbook.Sheets[enrichWorkbook.SheetNames[0]]
   const enrichData = XLSX.utils.sheet_to_json(enrichSheet)
@@ -101,11 +98,21 @@ const enrichBuffer = fs.readFileSync(enrichFilePath)
 
   const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].toUpperCase()
 
-  const dueSchedules = schedules?.filter(
-    (s) => s.recurring_days?.includes(currentDay) && s.hour === currentHour && s.minute === currentMinute
-  ) || []
+  for (const schedule of schedules || []) {
+    const zone = schedule.time_zone || "Europe/Tirane"
+    const nowInZone = now.setZone(zone)
 
-  for (const schedule of dueSchedules) {
+    const currentDay = nowInZone.toFormat("cccc")
+    const currentHour = nowInZone.hour
+    const currentMinute = nowInZone.minute
+
+    const isDueNow =
+      schedule.recurring_days?.includes(currentDay) &&
+      schedule.hour === currentHour &&
+      schedule.minute === currentMinute
+
+    if (!isDueNow) continue
+
     try {
       const businessData = await fetchBusinessData({
         apiKey: settings.targetronApiKey,
@@ -120,8 +127,8 @@ const enrichBuffer = fs.readFileSync(enrichFilePath)
         withPhone: schedule.with_phone ?? true,
         withoutPhone: schedule.without_phone ?? false,
         enrichWithAreaCodes: schedule.enrich_with_area_codes ?? false,
-        addedFrom: settings.fromDate || now.toISODate(),
-        addedTo: settings.toDate || now.toISODate(),
+        addedFrom: settings.fromDate || nowInZone.toISODate(),
+        addedTo: settings.toDate || nowInZone.toISODate(),
       })
 
       if (!businessData?.length) {
