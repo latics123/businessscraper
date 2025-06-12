@@ -70,7 +70,7 @@ timeZone: "Europe/London",
 
   scrapeType: "profiles",
   fromDate: "",
-  toDate: "",
+toDate: null as string | null, // instead of "" or today
   country: "US",
 city: null as string | null,
   state: "NY",
@@ -657,13 +657,13 @@ async function handleEmailFileVerification(file: File) {
                       <Calendar className="h-4 w-4" />
                       <span>To Date</span>
                     </Label>
-                    <Input
-                      id="toDate"
-                      type="date"
-                      value={formData.toDate}
-                      onChange={(e) => handleChange("toDate", e.target.value)}
-                      className="w-full"
-                    />
+<Input
+  id="toDate"
+  type="date"
+  value={formData.toDate ?? ""}
+  onChange={(e) => handleChange("toDate", e.target.value || null)}
+  className="w-full"
+/>
                   </div>
                 </div>
 

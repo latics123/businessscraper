@@ -23,23 +23,25 @@ export async function runScrapePipeline({
 }) {
   try {
     toast({ title: "Starting data collection", description: "Fetching business data from Targetron API..." })
+const resolvedToDate = formData.toDate ?? new Date().toISOString().split("T")[0]
 
     const businessData = await fetchBusinessData({
-      apiKey: formData.targetronApiKey,
-      country: formData.country,
-      city: formData.city,
-      state: formData.state,
-      postalCode: formData.postalCode,
-      businessType: formData.businessType || undefined,
-      businessStatus: formData.businessStatus,
-      limit: formData.limit,
-      skipTimes: formData.skipTimes,
-      addedFrom: formData.fromDate,
-      addedTo: formData.toDate,
-      withPhone: formData.phoneFilter === "with_phone" || formData.phoneFilter === "enter_phone",
-      withoutPhone: formData.phoneFilter === "without_phone",
-      enrichWithAreaCodes: formData.enrichWithAreaCodes,
-      phoneNumber: formData.phoneFilter === "enter_phone" ? formData.phoneNumber : undefined,
+  apiKey: formData.targetronApiKey,
+  country: formData.country,
+  city: formData.city,
+  state: formData.state,
+  postalCode: formData.postalCode,
+  businessType: formData.businessType || undefined,
+  businessStatus: formData.businessStatus,
+  limit: formData.limit,
+  skipTimes: formData.skipTimes,
+  addedFrom: formData.fromDate,
+  addedTo: resolvedToDate,
+  withPhone: formData.phoneFilter === "with_phone" || formData.phoneFilter === "enter_phone",
+  withoutPhone: formData.phoneFilter === "without_phone",
+  enrichWithAreaCodes: formData.enrichWithAreaCodes,
+  phoneNumber: formData.phoneFilter === "enter_phone" ? formData.phoneNumber : undefined,
+
     })
 
     if (!businessData || businessData.length === 0) {
