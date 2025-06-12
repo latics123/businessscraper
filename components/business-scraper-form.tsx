@@ -1162,8 +1162,37 @@ if (typeFilter === "one-time") return s.one_time
                   </td>
                   <td className="px-4 py-2">{schedule.city || "-"}</td>
                   <td className="px-4 py-2">{schedule.business_type || "-"}</td>
-                  <td className="px-4 py-2">{schedule.record_limit ?? "-"}</td>
-                  <td className="px-4 py-2">{schedule.skip_times ?? "-"}</td>
+<td className="px-4 py-2">
+  {
+    recurringSchedules
+      .filter(s =>
+        s.city === schedule.city &&
+        s.business_type === schedule.business_type &&
+        s.created_at === schedule.created_at &&
+        s.time_zone === schedule.time_zone
+      )[0]?.record_limit * 
+      recurringSchedules.filter(s =>
+        s.city === schedule.city &&
+        s.business_type === schedule.business_type &&
+        s.created_at === schedule.created_at &&
+        s.time_zone === schedule.time_zone
+      ).length
+  }
+</td>
+
+<td className="px-4 py-2">
+  {
+    recurringSchedules
+      .filter(s =>
+        s.city === schedule.city &&
+        s.business_type === schedule.business_type &&
+        s.created_at === schedule.created_at &&
+        s.time_zone === schedule.time_zone
+      )
+      .map(s => s.skip_times)
+      .join(" - ")
+  }
+</td>
                   <td className="px-4 py-2">
                     <Button
   variant={schedule.paused ? "default" : "secondary"}
