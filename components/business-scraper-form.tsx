@@ -416,7 +416,7 @@ newSchedules.push({
   minute,
   recurring_days: [day],
   created_at: new Date().toISOString(),
-  record_limit: totalLimit,
+  record_limit: batchSize,
   skip_times: i + 1,
   add_to_campaign: formData.addtocampaign,
   city: formData.city,
