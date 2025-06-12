@@ -629,7 +629,7 @@ async function handleEmailFileVerification(file: File) {
         <Tabs defaultValue="profiles" onValueChange={(value) => handleChange("scrapeType", value)}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="profiles">Scrape New Profiles</TabsTrigger>
-            <TabsTrigger value="recurring">Recurring Dates</TabsTrigger>
+            <TabsTrigger value="recurring">Orders</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profiles">
