@@ -66,34 +66,29 @@ async function postSlackMessage(text: string, slackBotToken: string, slackChanne
 }
 
 async function runRecurringScrapes() {
-const now = DateTime.now()
-const { data: schedules } = await supabase.from("recurring_scrapes").select("*")
+  const now = DateTime.now()
 
-if (!schedules) return
-
-for (const schedule of schedules) {
-  const zone = schedule.time_zone || "Europe/London"
-  const nowInZone = now.setZone(zone)
-
-  const currentDay = nowInZone.toFormat("cccc")
-  const currentHour = nowInZone.hour
-  const currentMinute = nowInZone.minute
-
+  // 🟢 Fetch all schedules
   const { data: schedules } = await supabase.from("recurring_scrapes").select("*")
+  if (!schedules) return
+
+  // 🟢 Load settings once
   const { data: settingsData } = await supabase
     .from("settings")
     .select("value")
     .eq("key", "scraperSettings")
     .limit(1)
 
-  const settings = typeof settingsData?.[0]?.value === "string"
+  if (!settingsData || settingsData.length === 0) return
+
+  const settings = typeof settingsData[0].value === "string"
     ? JSON.parse(settingsData[0].value)
-    : settingsData?.[0]?.value || {}
+    : settingsData[0].value || {}
 
   const slackBotToken = settings.slackBotToken
   const slackChannelId = settings.slackChannelId
 
-  // 📦 Load area code enrichment mapping
+  // 🟢 Load enrichment map once
   const enrichFilePath = path.join(process.cwd(), "public", "enrich-area-codes.xlsx")
   const enrichBuffer = fs.readFileSync(enrichFilePath)
   const enrichWorkbook = XLSX.read(enrichBuffer, { type: "array" })
@@ -109,8 +104,8 @@ for (const schedule of schedules) {
 
   const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].toUpperCase()
 
-  for (const schedule of schedules || []) {
-    const zone = schedule.time_zone || "Europe/Tirane"
+  for (const schedule of schedules) {
+    const zone = schedule.time_zone || "Europe/London"
     const nowInZone = now.setZone(zone)
 
     const currentDay = nowInZone.toFormat("cccc")
