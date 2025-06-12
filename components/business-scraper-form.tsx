@@ -274,7 +274,7 @@ const [typeFilter, setTypeFilter] = useState<"all" | "recurring" | "one-time">("
 
 // ✅ ADD RECURRING SCHEDULE
 const handleAddRecurring = async ({ immediate = false } = {}) => {
-    if (formData.enrichWithAreaCodes) {
+  if (formData.enrichWithAreaCodes) {
     await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
   }
 
@@ -294,19 +294,25 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
     }
 
     const now = new Date()
-    const hour = now.getHours()
-    const minute = (now.getMinutes() + 1) % 60
+    const baseHour = now.getHours()
+    const baseMinute = (now.getMinutes() + 1) % 60
     const dayAbbr = now.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()
     const fullDay = dayMap[dayAbbr] || "Monday"
 
     const newSchedules = []
+
     for (let i = 0; i < batchCount; i++) {
+      const limit = (i < batchCount - 1) ? batchSize : totalLimit - (batchSize * i)
+      const minuteOffset = baseMinute + i
+      const adjustedHour = (baseHour + Math.floor(minuteOffset / 60)) % 24
+      const adjustedMinute = minuteOffset % 60
+
       newSchedules.push({
-        hour,
-        minute,
+        hour: adjustedHour,
+        minute: adjustedMinute,
         recurring_days: [fullDay],
         created_at: now.toISOString(),
-        record_limit: totalLimit,
+        record_limit: limit,
         skip_times: i + 1,
         add_to_campaign: formData.addtocampaign,
         city: formData.city,
@@ -321,13 +327,11 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         phone_filter: formData.phoneFilter,
         start_now: true,
         one_time: true,
-          time_zone: formData.timeZone, // ✅ THIS MUST BE PRESENT
-
-          instantly_api_key: formData.instantlyApiKey,
-  instantly_list_id: formData.instantlyListId,
-  instantly_campaign_id: formData.instantlyCampaignId,
-  connect_cold_email: formData.connectColdEmail,
-
+        time_zone: formData.timeZone,
+        instantly_api_key: formData.instantlyApiKey,
+        instantly_list_id: formData.instantlyListId,
+        instantly_campaign_id: formData.instantlyCampaignId,
+        connect_cold_email: formData.connectColdEmail,
       })
     }
 
@@ -349,7 +353,6 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
       variant: "success",
     })
 
-    // ✅ Run the pipeline logic directly (no XLSX download)
     await runScrapePipeline({
       formData,
       downloadFiles: false,
@@ -413,34 +416,37 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
     }
 
     const newSchedules = []
+
     for (let i = 0; i < batchCount; i++) {
-newSchedules.push({
-  hour,
-  minute,
-  recurring_days: [day],
-  created_at: new Date().toISOString(),
-  record_limit: batchSize,
-  skip_times: i + 1,
-  add_to_campaign: formData.addtocampaign,
-  city: formData.city,
-  state: formData.state,
-  country: formData.country,
-  postal_code: formData.postalCode,
-  business_type: formData.businessType,
-  business_status: formData.businessStatus,
-  with_phone: formData.phoneFilter === "with_phone" || formData.phoneFilter === "enter_phone",
-  without_phone: formData.phoneFilter === "without_phone",
-  enrich_with_area_codes: formData.enrichWithAreaCodes,
-  phone_filter: formData.phoneFilter,
-  time_zone: formData.timeZone, // ✅ THIS MUST BE PRESENT
+      const limit = (i < batchCount - 1) ? batchSize : totalLimit - (batchSize * i)
+      const minuteOffset = minute + i
+      const adjustedHour = (hour + Math.floor(minuteOffset / 60)) % 24
+      const adjustedMinute = minuteOffset % 60
 
-  // 🟢 Required for Instantly
-  instantly_api_key: formData.instantlyApiKey,
-  instantly_list_id: formData.instantlyListId,
-  instantly_campaign_id: formData.instantlyCampaignId,
-  connect_cold_email: formData.connectColdEmail,
-})
-
+      newSchedules.push({
+        hour: adjustedHour,
+        minute: adjustedMinute,
+        recurring_days: [day],
+        created_at: new Date().toISOString(),
+        record_limit: limit,
+        skip_times: i + 1,
+        add_to_campaign: formData.addtocampaign,
+        city: formData.city,
+        state: formData.state,
+        country: formData.country,
+        postal_code: formData.postalCode,
+        business_type: formData.businessType,
+        business_status: formData.businessStatus,
+        with_phone: formData.phoneFilter === "with_phone" || formData.phoneFilter === "enter_phone",
+        without_phone: formData.phoneFilter === "without_phone",
+        enrich_with_area_codes: formData.enrichWithAreaCodes,
+        phone_filter: formData.phoneFilter,
+        time_zone: formData.timeZone,
+        instantly_api_key: formData.instantlyApiKey,
+        instantly_list_id: formData.instantlyListId,
+        instantly_campaign_id: formData.instantlyCampaignId,
+        connect_cold_email: formData.connectColdEmail,
+      })
     }
 
     const { error } = await supabase.from("recurring_scrapes").insert(newSchedules)
@@ -455,7 +461,6 @@ newSchedules.push({
       continue
     }
 
-    // ✅ Run scrape pipeline after each day's schedule is saved (optional: optimize to only run once)
     await runScrapePipeline({
       formData,
       downloadFiles: false,
@@ -478,6 +483,7 @@ newSchedules.push({
 
   fetchRecurringSchedules().then(setRecurringSchedules)
 }
+
 
 
 
