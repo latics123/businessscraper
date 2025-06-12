@@ -106,25 +106,31 @@ export function BusinessScraperForm() {
   useEffect(() => {
     setIsClient(true)
 
-    const today = new Date().toISOString().split("T")[0]
-    setFormData((prev) => ({
-      ...prev,
-      fromDate: today,
-      toDate: today,
-    }))
+useEffect(() => {
+  setIsClient(true)
 
-    const savedSettings = loadSettings()
-    if (savedSettings) {
-      setFormData((prev) => ({ ...prev, ...savedSettings }))
-    }
+  const today = new Date().toISOString().split("T")[0]
+  setFormData((prev) => ({
+    ...prev,
+    fromDate: today,
+    toDate: today,
+  }))
 
-    // 🔁 Load area codes automatically
-    if (formData.enrichWithAreaCodes) {
-      loadEnrichAreaCodesFromURL()
-        .then(() => console.log("Enrich area codes loaded"))
-        .catch((err) => console.error("Failed to load area codes", err))
-    }
-  }, [])
+  const savedSettings = loadSettings()
+  if (savedSettings) {
+    setFormData((prev) => ({ ...prev, ...savedSettings }))
+  } else {
+    // 🕒 Detect browser time zone and set it
+    const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    setFormData((prev) => ({ ...prev, timeZone: browserTimeZone }))
+  }
+
+  if (formData.enrichWithAreaCodes) {
+    loadEnrichAreaCodesFromURL()
+      .then(() => console.log("Enrich area codes loaded"))
+      .catch((err) => console.error("Failed to load area codes", err))
+  }
+}, [])
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => {
@@ -581,7 +587,7 @@ async function handleEmailFileVerification(file: File) {
 
     {/* Group buttons on the right */}
     <div className="flex items-center gap-2">
-      <Label htmlFor="timezone">Timezone</Label>
+      {/* <Label htmlFor="timezone">Timezone</Label>
 <select
   id="timezone"
   value={formData.timeZone}
@@ -591,7 +597,7 @@ async function handleEmailFileVerification(file: File) {
   {timezones.map(tz => (
     <option key={tz} value={tz}>{tz}</option>
   ))}
-</select>
+</select> */}
 
       <Button
         variant="ghost"
