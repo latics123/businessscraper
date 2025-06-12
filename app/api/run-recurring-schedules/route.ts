@@ -118,6 +118,18 @@ async function runRecurringScrapes() {
       schedule.minute === currentMinute
 
     if (!isDueNow) continue
+console.log("🔍 Checking schedule", {
+  id: schedule.id,
+  zone: schedule.time_zone,
+  nowInZone: nowInZone.toFormat("HH:mm"),
+  currentHour: nowInZone.hour,
+  currentMinute: nowInZone.minute,
+  scheduleHour: schedule.hour,
+  scheduleMinute: schedule.minute,
+  match: schedule.recurring_days?.includes(currentDay) &&
+         schedule.hour === currentHour &&
+         schedule.minute === currentMinute
+})
 
     try {
       const businessData = await fetchBusinessData({
