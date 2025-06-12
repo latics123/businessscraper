@@ -66,7 +66,18 @@ async function postSlackMessage(text: string, slackBotToken: string, slackChanne
 }
 
 async function runRecurringScrapes() {
-  const now = DateTime.now()
+const now = DateTime.now()
+const { data: schedules } = await supabase.from("recurring_scrapes").select("*")
+
+if (!schedules) return
+
+for (const schedule of schedules) {
+  const zone = schedule.time_zone || "Europe/London"
+  const nowInZone = now.setZone(zone)
+
+  const currentDay = nowInZone.toFormat("cccc")
+  const currentHour = nowInZone.hour
+  const currentMinute = nowInZone.minute
 
   const { data: schedules } = await supabase.from("recurring_scrapes").select("*")
   const { data: settingsData } = await supabase
