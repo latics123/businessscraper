@@ -103,9 +103,6 @@ export function BusinessScraperForm() {
   const [hasData, setHasData] = useState(false)
 
   // Set isClient to true when component mounts (client-side only)
-  useEffect(() => {
-    setIsClient(true)
-
 useEffect(() => {
   setIsClient(true)
 
@@ -587,7 +584,6 @@ async function handleEmailFileVerification(file: File) {
 
     {/* Group buttons on the right */}
     <div className="flex items-center gap-2">
-
 
       <Button
         variant="ghost"
