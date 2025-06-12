@@ -587,17 +587,7 @@ async function handleEmailFileVerification(file: File) {
 
     {/* Group buttons on the right */}
     <div className="flex items-center gap-2">
-      {/* <Label htmlFor="timezone">Timezone</Label>
-<select
-  id="timezone"
-  value={formData.timeZone}
-  onChange={(e) => setFormData({ ...formData, timeZone: e.target.value })}
-  className="border rounded px-2 py-1 text-sm"
->
-  {timezones.map(tz => (
-    <option key={tz} value={tz}>{tz}</option>
-  ))}
-</select> */}
+
 
       <Button
         variant="ghost"
