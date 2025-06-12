@@ -66,12 +66,22 @@ async function postSlackMessage(text: string, slackBotToken: string, slackChanne
 }
 
 async function runRecurringScrapes() {
-  const now = DateTime.now().setZone("Europe/Tirane")
+    const { data: schedules } = await supabase.from("recurring_scrapes").select("*")
+const dueSchedules = (schedules || []).filter((s) => {
+  const userZone = s.time_zone || "Europe/Tirane" // fallback if not set
+  const now = DateTime.now().setZone(userZone)
   const currentDay = now.toFormat("cccc")
   const currentHour = now.hour
   const currentMinute = now.minute
 
-  const { data: schedules } = await supabase.from("recurring_scrapes").select("*")
+  return (
+    s.recurring_days?.includes(currentDay) &&
+    s.hour === currentHour &&
+    s.minute === currentMinute
+  )
+})
+
+
   const { data: settingsData } = await supabase
     .from("settings")
     .select("value")
@@ -101,9 +111,7 @@ const enrichBuffer = fs.readFileSync(enrichFilePath)
 
   const getPostalPrefix = (postal: string) => (postal || "").split(" ")[0].toUpperCase()
 
-  const dueSchedules = schedules?.filter(
-    (s) => s.recurring_days?.includes(currentDay) && s.hour === currentHour && s.minute === currentMinute
-  ) || []
+
 
   for (const schedule of dueSchedules) {
     try {

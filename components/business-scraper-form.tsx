@@ -28,6 +28,7 @@ import { useUser } from "@/lib/useUser"
 import { HelpDialog } from "@/components/help-dialog"
 import { convertAndVerifyJson } from "@/lib/utils"
 import { runScrapePipeline } from "@/lib/runScrapePipeline"
+import { DateTime } from "luxon"
 
 export function ProtectedRoute({ children }: { children: ReactNode }) {
   const router = useRouter()
@@ -44,6 +45,7 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+  const [userTimeZone, setUserTimeZone] = useState("Europe/Tirane") // fallback default
 
 // Default form data without date-specific values
 const defaultFormData = {
@@ -54,7 +56,7 @@ const defaultFormData = {
   instantlyApiKey: "",
   instantlyListId: "",
   instantlyCampaignId: "",
-
+time_zone: userTimeZone,
   // ✅ Add these for profiles
   instProfileId: "",
   instantlyProfiles: [] as {
@@ -99,30 +101,35 @@ export function BusinessScraperForm() {
   const [isClient, setIsClient] = useState(false)
   const [businessData, setBusinessData] = useState<any[]>([])
   const [hasData, setHasData] = useState(false)
+    const [userTimeZone, setUserTimeZone] = useState("Europe/Tirane") // ✅ correct
+
 
   // Set isClient to true when component mounts (client-side only)
-  useEffect(() => {
-    setIsClient(true)
+useEffect(() => {
+  setIsClient(true)
 
-    const today = new Date().toISOString().split("T")[0]
-    setFormData((prev) => ({
-      ...prev,
-      fromDate: today,
-      toDate: today,
-    }))
+  const today = new Date().toISOString().split("T")[0]
+  setFormData((prev) => ({
+    ...prev,
+    fromDate: today,
+    toDate: today,
+  }))
 
-    const savedSettings = loadSettings()
-    if (savedSettings) {
-      setFormData((prev) => ({ ...prev, ...savedSettings }))
-    }
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  setUserTimeZone(tz)
 
-    // 🔁 Load area codes automatically
-    if (formData.enrichWithAreaCodes) {
-      loadEnrichAreaCodesFromURL()
-        .then(() => console.log("Enrich area codes loaded"))
-        .catch((err) => console.error("Failed to load area codes", err))
-    }
-  }, [])
+  const savedSettings = loadSettings()
+  if (savedSettings) {
+    setFormData((prev) => ({ ...prev, ...savedSettings }))
+  }
+
+  if (formData.enrichWithAreaCodes) {
+    loadEnrichAreaCodesFromURL()
+      .then(() => console.log("Enrich area codes loaded"))
+      .catch((err) => console.error("Failed to load area codes", err))
+  }
+}, [])
+
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => {
@@ -288,9 +295,10 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
       SUN: "Sunday",
     }
 
-    const now = new Date()
-    const hour = now.getHours()
-    const minute = (now.getMinutes() + 1) % 60
+const now = DateTime.now().setZone(userTimeZone)
+const hour = now.hour
+const minute = (now.minute + 1) % 60
+
     const dayAbbr = now.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()
     const fullDay = dayMap[dayAbbr] || "Monday"
 
