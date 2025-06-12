@@ -66,7 +66,7 @@ async function postSlackMessage(text: string, slackBotToken: string, slackChanne
 }
 
 async function runRecurringScrapes() {
-const now = DateTime.now().setZone(Intl.DateTimeFormat().resolvedOptions().timeZone)
+  const now = DateTime.now().setZone("Europe/Tirane")
   const currentDay = now.toFormat("cccc")
   const currentHour = now.hour
   const currentMinute = now.minute

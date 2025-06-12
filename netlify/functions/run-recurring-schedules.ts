@@ -39,7 +39,7 @@ const verifyEmail = async (email: string, apiKey: string): Promise<boolean> => {
 
 
 const handler: Handler = async () => {
-const now = DateTime.now().setZone(Intl.DateTimeFormat().resolvedOptions().timeZone)
+  const now = DateTime.now().setZone("Europe/Tirane")
   const currentDay = now.toFormat("cccc")
   const currentHour = now.hour
   const currentMinute = now.minute
