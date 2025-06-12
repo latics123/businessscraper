@@ -106,23 +106,21 @@ export function BusinessScraperForm() {
 useEffect(() => {
   setIsClient(true)
 
+  const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
   const today = new Date().toISOString().split("T")[0]
-  setFormData((prev) => ({
-    ...prev,
-    fromDate: today,
-    toDate: today,
-  }))
 
   const savedSettings = loadSettings()
-  if (savedSettings) {
-    setFormData((prev) => ({ ...prev, ...savedSettings }))
-  } else {
-    // 🕒 Detect browser time zone and set it
-    const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    setFormData((prev) => ({ ...prev, timeZone: browserTimeZone }))
+  const merged = {
+    ...defaultFormData,
+    ...savedSettings,
+    timeZone: browserTimeZone, // always override with actual browser time zone
+    fromDate: today,
+    toDate: today,
   }
 
-  if (formData.enrichWithAreaCodes) {
+  setFormData(merged)
+
+  if (merged.enrichWithAreaCodes) {
     loadEnrichAreaCodesFromURL()
       .then(() => console.log("Enrich area codes loaded"))
       .catch((err) => console.error("Failed to load area codes", err))
