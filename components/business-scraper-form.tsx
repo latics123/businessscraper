@@ -111,14 +111,13 @@ useEffect(() => {
     ...prev,
     fromDate: today,
     toDate: today,
+    timeZone: "Europe/London", // ✅ Force override timezone regardless of storage
   }))
 
   const savedSettings = loadSettings()
   if (savedSettings) {
-    setFormData((prev) => ({ ...prev, ...savedSettings }))
-  } else {
-    // Force static timezone
-    setFormData((prev) => ({ ...prev, timeZone: "Europe/London" }))
+    const { timeZone: _ignored, ...rest } = savedSettings // 🚫 exclude any saved timezone
+    setFormData((prev) => ({ ...prev, ...rest, timeZone: "Europe/London" }))
   }
 
   if (formData.enrichWithAreaCodes) {
@@ -127,6 +126,7 @@ useEffect(() => {
       .catch((err) => console.error("Failed to load area codes", err))
   }
 }, [])
+
 
 
   const handleChange = (field: string, value: any) => {
@@ -327,7 +327,7 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         phone_filter: formData.phoneFilter,
         start_now: true,
         one_time: true,
-        time_zone: formData.timeZone,
+time_zone: "Europe/London",
         instantly_api_key: formData.instantlyApiKey,
         instantly_list_id: formData.instantlyListId,
         instantly_campaign_id: formData.instantlyCampaignId,
@@ -441,7 +441,7 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         without_phone: formData.phoneFilter === "without_phone",
         enrich_with_area_codes: formData.enrichWithAreaCodes,
         phone_filter: formData.phoneFilter,
-        time_zone: formData.timeZone,
+time_zone: "Europe/London",
         instantly_api_key: formData.instantlyApiKey,
         instantly_list_id: formData.instantlyListId,
         instantly_campaign_id: formData.instantlyCampaignId,
