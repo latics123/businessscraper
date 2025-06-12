@@ -318,6 +318,7 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         phone_filter: formData.phoneFilter,
         start_now: true,
         one_time: true,
+          time_zone: formData.timeZone, // ✅ THIS MUST BE PRESENT
 
           instantly_api_key: formData.instantlyApiKey,
   instantly_list_id: formData.instantlyListId,
@@ -428,6 +429,7 @@ newSchedules.push({
   without_phone: formData.phoneFilter === "without_phone",
   enrich_with_area_codes: formData.enrichWithAreaCodes,
   phone_filter: formData.phoneFilter,
+  time_zone: formData.timeZone, // ✅ THIS MUST BE PRESENT
 
   // 🟢 Required for Instantly
   instantly_api_key: formData.instantlyApiKey,
