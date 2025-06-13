@@ -300,7 +300,6 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
     for (let i = 0; i < batchCount; i++) {
       const isLastBatch = i === batchCount - 1
       const thisBatchLimit = isLastBatch ? totalLimit - batchSize * i : batchSize
-
       const batchMinute = (minute + i * 2) % 60
       const batchHour = (hour + Math.floor((minute + i * 2) / 60)) % 24
 
@@ -310,7 +309,7 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         recurring_days: [fullDay],
         created_at: now.toISOString(),
         record_limit: thisBatchLimit,
-        skip_times: i + 1,
+        skip_times: i + 1, // ✅ Does NOT matter for immediate batches
         add_to_campaign: formData.addtocampaign,
         city: formData.city,
         state: formData.state,
@@ -412,11 +411,25 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
       continue
     }
 
+    // ✅ Step 1: Get current max skip_times for this batch group
+    const { data: existing } = await supabase
+      .from("recurring_scrapes")
+      .select("skip_times")
+      .eq("business_type", formData.businessType)
+      .eq("business_status", formData.businessStatus)
+      .eq("country", formData.country)
+      .eq("city", formData.city)
+      .eq("state", formData.state)
+      .eq("postal_code", formData.postalCode)
+      .order("skip_times", { ascending: false })
+      .limit(1)
+
+    const baseSkip = existing?.[0]?.skip_times || 0
+
     const newSchedules = []
     for (let i = 0; i < batchCount; i++) {
       const isLastBatch = i === batchCount - 1
       const thisBatchLimit = isLastBatch ? totalLimit - batchSize * i : batchSize
-
       const batchMinute = (minute + i * 2) % 60
       const batchHour = (hour + Math.floor((minute + i * 2) / 60)) % 24
 
@@ -426,7 +439,7 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         recurring_days: [day],
         created_at: new Date().toISOString(),
         record_limit: thisBatchLimit,
-        skip_times: i + 1,
+        skip_times: baseSkip + i + 1, // ✅ Skip starts from max + 1
         add_to_campaign: formData.addtocampaign,
         city: formData.city,
         state: formData.state,
@@ -480,6 +493,7 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
 
   fetchRecurringSchedules().then(setRecurringSchedules)
 }
+
 
 
 
