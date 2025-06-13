@@ -362,8 +362,8 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
     <div>
       <p className="font-semibold mb-1">🧠 What is Supabase Used For?</p>
       <p>
-        Supabase is used to store and manage queued scraping jobs, recurring scrape schedules, and app-wide settings.
-        It acts as your project’s lightweight backend database with real-time capabilities.
+        Supabase is used to store and manage one-time scraping jobs, recurring scrape schedules, and app-wide settings.
+        It also stores scraped files (JSON/XLSX) in the <code>scrapes</code> storage bucket.
       </p>
     </div>
 
@@ -374,7 +374,7 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
         <li><code>SUPABASE_ANON_KEY</code> – The public (anon) API key from your Supabase dashboard</li>
       </ul>
       <p className="text-xs text-gray-500">
-        Add these to your <strong>.env</strong> file (locally) or to Netlify under: <code>Site Settings → Environment Variables</code>.
+        Add these to your <strong>.env</strong> file (locally) or to your deployment environment variables.
       </p>
     </div>
 
@@ -411,9 +411,9 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
       <details className="border rounded p-2 bg-gray-50">
         <summary className="cursor-pointer font-medium">scrape_queue</summary>
         <pre className="text-xs mt-2 overflow-x-auto">
-CREATE TABLE scrape_queue (
+CREATE TABLE public.scrape_queue (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  created_at timestamptz DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
   status text DEFAULT 'pending',
   record_limit integer,
   skip_times integer,
@@ -439,11 +439,11 @@ CREATE TABLE scrape_queue (
       <details className="border rounded p-2 bg-gray-50">
         <summary className="cursor-pointer font-medium">recurring_scrapes</summary>
         <pre className="text-xs mt-2 overflow-x-auto">
-        CREATE TABLE recurring_scrapes (
+CREATE TABLE public.recurring_scrapes (
   id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-  recurring_days text[] NOT NULL,
-  hour integer NOT NULL,
-  minute integer NOT NULL,
+  recurring_days text[],
+  hour integer,
+  minute integer,
   city text,
   state text,
   country text,
@@ -453,11 +453,19 @@ CREATE TABLE scrape_queue (
   record_limit integer,
   skip_times integer,
   add_to_campaign boolean,
-  created_at timestamptz DEFAULT now(),
+  created_at timestamp with time zone DEFAULT now(),
   with_phone boolean DEFAULT true,
   without_phone boolean DEFAULT false,
   enrich_with_area_codes boolean DEFAULT false,
-  paused boolean DEFAULT false
+  paused boolean DEFAULT false,
+  phone_filter text,
+  start_now boolean DEFAULT false,
+  one_time boolean DEFAULT false,
+  connect_cold_email boolean DEFAULT false,
+  instantly_api_key text,
+  instantly_list_id text,
+  instantly_campaign_id text,
+  time_zone text DEFAULT 'Europe/London'
 );
         </pre>
       </details>
@@ -465,12 +473,24 @@ CREATE TABLE scrape_queue (
       <details className="border rounded p-2 bg-gray-50">
         <summary className="cursor-pointer font-medium">settings</summary>
         <pre className="text-xs mt-2 overflow-x-auto">
-CREATE TABLE settings (
-  key text PRIMARY KEY,
-  value jsonb NOT NULL
+CREATE TABLE public.settings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  key text NOT NULL,
+  value jsonb NOT NULL,
+  created_at timestamp with time zone DEFAULT now()
 );
         </pre>
       </details>
+    </div>
+
+    <div>
+      <p className="font-semibold mb-1">🗂️ Create a Supabase Storage Bucket</p>
+      <p>Go to <strong>Storage → Create a new bucket</strong> and name it:</p>
+      <pre className="text-xs bg-gray-100 p-2 rounded border">scrapes</pre>
+      <p className="text-xs text-gray-500">
+        Make sure the bucket is public if files need to be downloaded from the frontend.
+        You can manage upload/download via Supabase's storage API.
+      </p>
     </div>
 
     <div>
@@ -480,90 +500,82 @@ CREATE TABLE settings (
         <li>Use RLS (Row-Level Security) only if you configure user auth — otherwise disable it.</li>
         <li>Monitor API usage in the Supabase dashboard to avoid rate limits.</li>
       </ul>
-      <h4 className="font-semibold mb-2">API Responses</h4>
-  <ul className="list-disc list-inside space-y-1 text-sm">
-    <li><strong>200 OK</strong> – Successful response from Supabase Auth, Storage, or Database API.</li>
-    <li><strong>400 Bad Request</strong> – Malformed request or missing fields (e.g. email required, invalid syntax).</li>
-    <li><strong>401 Unauthorized</strong> – Missing or invalid JWT/token. Used for endpoints requiring auth.</li>
-    <li><strong>402 Payment Required</strong> – Project quota exceeded (e.g. free plan limit reached).</li>
-    <li><strong>403 Forbidden</strong> – Access denied due to Row Level Security (RLS) or missing permissions.</li>
-    <li><strong>404 Not Found</strong> – Table, record, or resource not found.</li>
-    <li><strong>422 Unprocessable Entity</strong> – Semantic issue with input (e.g. JSON syntax valid but logic is bad).</li>
-    <li><strong>429 Too Many Requests</strong> – Rate limit hit. Supabase is throttling your requests.</li>
-    <li><strong>500 Internal Server Error</strong> – Server-side issue on Supabase. Retry later.</li>
-  </ul>
 
+      <h4 className="font-semibold mb-2">API Responses</h4>
+      <ul className="list-disc list-inside space-y-1 text-sm">
+        <li><strong>200 OK</strong> – Successful response from Supabase Auth, Storage, or Database API.</li>
+        <li><strong>400 Bad Request</strong> – Malformed request or missing fields (e.g. email required, invalid syntax).</li>
+        <li><strong>401 Unauthorized</strong> – Missing or invalid JWT/token. Used for endpoints requiring auth.</li>
+        <li><strong>402 Payment Required</strong> – Project quota exceeded (e.g. free plan limit reached).</li>
+        <li><strong>403 Forbidden</strong> – Access denied due to Row Level Security (RLS) or missing permissions.</li>
+        <li><strong>404 Not Found</strong> – Table, record, or resource not found.</li>
+        <li><strong>422 Unprocessable Entity</strong> – Semantic issue with input (e.g. JSON syntax valid but logic is bad).</li>
+        <li><strong>429 Too Many Requests</strong> – Rate limit hit. Supabase is throttling your requests.</li>
+        <li><strong>500 Internal Server Error</strong> – Server-side issue on Supabase. Retry later.</li>
+      </ul>
     </div>
   </div>
 </TabsContent>
 <TabsContent value="netlify">
-  <div className="text-sm text-muted-foreground space-y-4">
-    <div>
-      <p className="font-semibold mb-1">🚀 Netlify Setup & Debugging Guide</p>
-      <p>
-        Netlify hosts your frontend and connects it to APIs and Supabase. Here's how to deploy, debug, and monitor it effectively.
-      </p>
-    </div>
-
-    <div>
-      <p className="font-semibold">1. Local Development</p>
-      <ul className="list-disc list-inside">
-        <li>Run the app locally using <code>npm run dev</code> or <code>yarn dev</code>.</li>
-        <li>This uses the <strong>.env</strong> file located at the root of your project.</li>
-        <li>Make sure all required variables are present: <code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code>, etc.</li>
-      </ul>
-    </div>
-
-    <div>
-      <p className="font-semibold">2. Deploying to Netlify</p>
-      <ol className="list-decimal list-inside space-y-1">
-        <li>Push your project to GitHub.</li>
-        <li>Connect your GitHub repo to Netlify via the Netlify dashboard.</li>
-        <li>Set your build command to <code>npm run build</code> and publish directory to <code>.next</code> or <code>out</code> depending on your framework.</li>
-        <li>Set environment variables from your local <code>.env</code> into Netlify: go to <strong>Site settings → Environment Variables</strong>.</li>
-      </ol>
-    </div>
-
-    <div>
-      <p className="font-semibold">3. Debugging & Logs</p>
-      <ul className="list-disc list-inside">
-        <li>Go to your site → <strong>Deploys</strong> tab → click on the latest deploy → <strong>View logs</strong></li>
-        <li>This will show you build errors, runtime exceptions, and console logs</li>
-        <li>You can also add <code>console.log()</code> in your app to debug in Netlify Functions or static render.</li>
-      </ul>
-    </div>
-
-    <div>
-      <p className="font-semibold">4. Common Errors</p>
-      <ul className="list-disc list-inside space-y-2">
-        <li>
-          <strong>503 – API Service Unavailable:</strong><br />
-          This usually means your backend (like Targetron or Supabase) is either down, blocking the request, or hit rate limits.
-        </li>
-        <li>
-          <strong>Failed to load resource (CORS):</strong><br />
-          Your external API is not allowing calls from your Netlify domain. Fix by adjusting CORS headers.
-        </li>
-        <li>
-          <strong>Missing environment variables:</strong><br />
-          You may see undefined values or fetch errors — confirm Netlify env vars match your local <code>.env</code>.
-        </li>
-        <li>
-          <strong>Runtime errors (undefined, null, etc.):</strong><br />
-          Check your browser console and Netlify logs to trace back.
-        </li>
-      </ul>
-    </div>
-
-    <div>
-      <p className="font-semibold text-red-600">✅ Best Practices</p>
-      <ul className="list-disc list-inside">
-        <li>Deploy preview builds from branches before merging to main.</li>
-        <li>Use Netlify Functions if you need server-side logic with secrets (like Telegram API, custom scrapers).</li>
-        <li>Always test new features locally with <code>npm run dev</code> before deploying.</li>
-      </ul>
-    </div>
+<div className="text-sm text-muted-foreground space-y-4">
+  <div>
+    <p className="font-semibold mb-1">🚄 Railway Setup & Debugging Guide</p>
+    <p>
+      Railway hosts your frontend and backend services with easy Git integration and environment management. Here's how to deploy, debug, and manage it effectively.
+    </p>
   </div>
+
+  <div>
+    <p className="font-semibold">1. Deploying to Railway</p>
+    <ol className="list-decimal list-inside space-y-1">
+      <li>Push your project to GitHub.</li>
+      <li>Go to the Railway dashboard and create a new project → <strong>Deploy from GitHub repo</strong>.</li>
+      <li>Railway auto-detects your framework and suggests build settings. Use <code>npm run build</code> as the build command.</li>
+      <li>Set your output directory (e.g. <code>.next</code> or <code>out</code> for static export).</li>
+      <li>Go to the <strong>Variables</strong> tab and add your environment variables from your local <code>.env</code> file.</li>
+    </ol>
+  </div>
+
+  <div>
+    <p className="font-semibold">2. Debugging & Logs</p>
+    <ul className="list-disc list-inside">
+      <li>Open your Railway project → <strong>Deployments</strong> → click any deployment to see full logs.</li>
+      <li>Use <code>console.log()</code> in your code to output logs into the deployment console.</li>
+      <li>Railway shows build errors and runtime exceptions directly in the UI.</li>
+    </ul>
+  </div>
+
+  <div>
+    <p className="font-semibold">3. Common Errors</p>
+    <ul className="list-disc list-inside space-y-2">
+      <li>
+        <strong>503 – API Service Unavailable:</strong><br />
+        Your Supabase or external API might be unreachable, misconfigured, or rate-limited.
+      </li>
+      <li>
+        <strong>CORS issues:</strong><br />
+        Ensure your APIs allow requests from your Railway domain by adjusting CORS settings.
+      </li>
+      <li>
+        <strong>Missing environment variables:</strong><br />
+        Confirm all variables in Railway match those from your local <code>.env</code>.
+      </li>
+      <li>
+        <strong>Undefined/null runtime errors:</strong><br />
+        Use browser console and Railway logs to trace and fix.
+      </li>
+    </ul>
+  </div>
+
+  <div>
+    <p className="font-semibold text-red-600">✅ Best Practices</p>
+    <ul className="list-disc list-inside">
+      <li>Enable preview deployments from branches before merging to main.</li>
+      <li>Store secrets (API keys, tokens) in Railway environment variables, never in your code.</li>
+      <li>Review logs after each deploy to catch unexpected issues early.</li>
+    </ul>
+  </div>
+</div>
 </TabsContent>
 
 <TabsContent value="scraping">
@@ -603,8 +615,8 @@ CREATE TABLE settings (
         </li>
 
         <li>
-          <strong>Telegram Delivery:</strong><br />
-          Enter your Telegram Bot Token and Chat ID in Settings if you want the results to be sent to your Telegram channel.
+          <strong>Slack Delivery:</strong><br />
+          Enter your Slack Bot Token and Chat ID in Settings if you want the results to be sent to your Slack channel.
         </li>
 
         <li>
