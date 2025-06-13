@@ -70,7 +70,7 @@ timeZone: "Europe/London",
 
   scrapeType: "profiles",
   fromDate: "",
-toDate: null as string | null, // instead of "" or today
+  toDate: "",
   country: "US",
 city: null as string | null,
   state: "NY",
@@ -107,22 +107,19 @@ useEffect(() => {
   setIsClient(true)
 
   const today = new Date().toISOString().split("T")[0]
-  const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-
   setFormData((prev) => ({
     ...prev,
     fromDate: today,
     toDate: today,
-    timeZone: browserTimeZone, // ✅ Use detected system/browser timezone
   }))
 
   const savedSettings = loadSettings()
   if (savedSettings) {
-    setFormData((prev) => ({
-      ...prev,
-      ...savedSettings,
-      timeZone: savedSettings.timeZone || browserTimeZone, // ✅ Respect saved timezone or fallback to detected one
-    }))
+    setFormData((prev) => ({ ...prev, ...savedSettings }))
+  } else {
+    // 🕒 Detect browser time zone and set it
+    const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    setFormData((prev) => ({ ...prev, timeZone: browserTimeZone }))
   }
 
   if (formData.enrichWithAreaCodes) {
@@ -277,7 +274,7 @@ const [typeFilter, setTypeFilter] = useState<"all" | "recurring" | "one-time">("
 
 // ✅ ADD RECURRING SCHEDULE
 const handleAddRecurring = async ({ immediate = false } = {}) => {
-  if (formData.enrichWithAreaCodes) {
+    if (formData.enrichWithAreaCodes) {
     await loadEnrichAreaCodesFromURL("/enrich-area-codes.xlsx")
   }
 
@@ -297,25 +294,19 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
     }
 
     const now = new Date()
-    const baseHour = now.getHours()
-    const baseMinute = (now.getMinutes() + 1) % 60
+    const hour = now.getHours()
+    const minute = (now.getMinutes() + 1) % 60
     const dayAbbr = now.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()
     const fullDay = dayMap[dayAbbr] || "Monday"
 
     const newSchedules = []
-
     for (let i = 0; i < batchCount; i++) {
-      const limit = (i < batchCount - 1) ? batchSize : totalLimit - (batchSize * i)
-      const minuteOffset = baseMinute + i
-      const adjustedHour = (baseHour + Math.floor(minuteOffset / 60)) % 24
-      const adjustedMinute = minuteOffset % 60
-
       newSchedules.push({
-        hour: adjustedHour,
-        minute: adjustedMinute,
+        hour,
+        minute,
         recurring_days: [fullDay],
         created_at: now.toISOString(),
-        record_limit: limit,
+        record_limit: totalLimit,
         skip_times: i + 1,
         add_to_campaign: formData.addtocampaign,
         city: formData.city,
@@ -330,11 +321,13 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         phone_filter: formData.phoneFilter,
         start_now: true,
         one_time: true,
-time_zone: formData.timeZone,
-        instantly_api_key: formData.instantlyApiKey,
-        instantly_list_id: formData.instantlyListId,
-        instantly_campaign_id: formData.instantlyCampaignId,
-        connect_cold_email: formData.connectColdEmail,
+          time_zone: formData.timeZone, // ✅ THIS MUST BE PRESENT
+
+          instantly_api_key: formData.instantlyApiKey,
+  instantly_list_id: formData.instantlyListId,
+  instantly_campaign_id: formData.instantlyCampaignId,
+  connect_cold_email: formData.connectColdEmail,
+
       })
     }
 
@@ -356,6 +349,7 @@ time_zone: formData.timeZone,
       variant: "success",
     })
 
+    // ✅ Run the pipeline logic directly (no XLSX download)
     await runScrapePipeline({
       formData,
       downloadFiles: false,
@@ -419,37 +413,34 @@ time_zone: formData.timeZone,
     }
 
     const newSchedules = []
-
     for (let i = 0; i < batchCount; i++) {
-      const limit = (i < batchCount - 1) ? batchSize : totalLimit - (batchSize * i)
-      const minuteOffset = minute + i
-      const adjustedHour = (hour + Math.floor(minuteOffset / 60)) % 24
-      const adjustedMinute = minuteOffset % 60
+newSchedules.push({
+  hour,
+  minute,
+  recurring_days: [day],
+  created_at: new Date().toISOString(),
+  record_limit: batchSize,
+  skip_times: i + 1,
+  add_to_campaign: formData.addtocampaign,
+  city: formData.city,
+  state: formData.state,
+  country: formData.country,
+  postal_code: formData.postalCode,
+  business_type: formData.businessType,
+  business_status: formData.businessStatus,
+  with_phone: formData.phoneFilter === "with_phone" || formData.phoneFilter === "enter_phone",
+  without_phone: formData.phoneFilter === "without_phone",
+  enrich_with_area_codes: formData.enrichWithAreaCodes,
+  phone_filter: formData.phoneFilter,
+  time_zone: formData.timeZone, // ✅ THIS MUST BE PRESENT
 
-      newSchedules.push({
-        hour: adjustedHour,
-        minute: adjustedMinute,
-        recurring_days: [day],
-        created_at: new Date().toISOString(),
-        record_limit: limit,
-        skip_times: i + 1,
-        add_to_campaign: formData.addtocampaign,
-        city: formData.city,
-        state: formData.state,
-        country: formData.country,
-        postal_code: formData.postalCode,
-        business_type: formData.businessType,
-        business_status: formData.businessStatus,
-        with_phone: formData.phoneFilter === "with_phone" || formData.phoneFilter === "enter_phone",
-        without_phone: formData.phoneFilter === "without_phone",
-        enrich_with_area_codes: formData.enrichWithAreaCodes,
-        phone_filter: formData.phoneFilter,
-time_zone: formData.timeZone,
-        instantly_api_key: formData.instantlyApiKey,
-        instantly_list_id: formData.instantlyListId,
-        instantly_campaign_id: formData.instantlyCampaignId,
-        connect_cold_email: formData.connectColdEmail,
-      })
+  // 🟢 Required for Instantly
+  instantly_api_key: formData.instantlyApiKey,
+  instantly_list_id: formData.instantlyListId,
+  instantly_campaign_id: formData.instantlyCampaignId,
+  connect_cold_email: formData.connectColdEmail,
+})
+
     }
 
     const { error } = await supabase.from("recurring_scrapes").insert(newSchedules)
@@ -464,6 +455,7 @@ time_zone: formData.timeZone,
       continue
     }
 
+    // ✅ Run scrape pipeline after each day's schedule is saved (optional: optimize to only run once)
     await runScrapePipeline({
       formData,
       downloadFiles: false,
@@ -486,7 +478,6 @@ time_zone: formData.timeZone,
 
   fetchRecurringSchedules().then(setRecurringSchedules)
 }
-
 
 
 
@@ -593,7 +584,7 @@ async function handleEmailFileVerification(file: File) {
 
     {/* Group buttons on the right */}
     <div className="flex items-center gap-2">
-<Label htmlFor="timezone">Timezone</Label>
+      <Label htmlFor="timezone">Timezone</Label>
 <select
   id="timezone"
   value={formData.timeZone}
@@ -643,7 +634,7 @@ async function handleEmailFileVerification(file: File) {
         <Tabs defaultValue="profiles" onValueChange={(value) => handleChange("scrapeType", value)}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="profiles">Scrape New Profiles</TabsTrigger>
-            <TabsTrigger value="recurring">Orders</TabsTrigger>
+            <TabsTrigger value="recurring">Recurring Dates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="profiles">
@@ -671,13 +662,13 @@ async function handleEmailFileVerification(file: File) {
                       <Calendar className="h-4 w-4" />
                       <span>To Date</span>
                     </Label>
-<Input
-  id="toDate"
-  type="date"
-  value={formData.toDate ?? ""}
-  onChange={(e) => handleChange("toDate", e.target.value || null)}
-  className="w-full"
-/>
+                    <Input
+                      id="toDate"
+                      type="date"
+                      value={formData.toDate}
+                      onChange={(e) => handleChange("toDate", e.target.value)}
+                      className="w-full"
+                    />
                   </div>
                 </div>
 
@@ -1148,79 +1139,58 @@ onCheckedChange={(checked) => {
               <th className="px-4 py-2 text-left font-medium">Actions</th>
             </tr>
           </thead>
-<tbody className="divide-y divide-gray-100">
-  {[
-    ...new Map(
-      recurringSchedules
-        .filter((s) => {
-          if (typeFilter === "recurring") return !s.one_time
-          if (typeFilter === "one-time") return s.one_time
-          return true
-        })
-        .sort((a, b) => {
-          const dateA = new Date(a.created_at || a.date || "").getTime()
-          const dateB = new Date(b.created_at || b.date || "").getTime()
-          return sortOrder === "new" ? dateB - dateA : dateA - dateB
-        })
-        .map((item) => [
-          `${item.city}_${item.business_type}_${item.created_at}_${item.time_zone}`,
-          item,
-        ])
-    ).values(),
-  ]
-    .slice((currentPage - 1) * schedulesPerPage, currentPage * schedulesPerPage)
-    .map((schedule) => {
-      const batchGroup = recurringSchedules.filter(
-        (s) =>
-          s.city === schedule.city &&
-          s.business_type === schedule.business_type &&
-          s.created_at === schedule.created_at &&
-          s.time_zone === schedule.time_zone
-      )
+          <tbody className="divide-y divide-gray-100">
+            {recurringSchedules
+              .filter((s) => {
+if (typeFilter === "recurring") return !s.one_time
+if (typeFilter === "one-time") return s.one_time
+                return true
+              })
+              .sort((a, b) => {
+                const dateA = new Date(a.created_at || a.date || "").getTime()
+                const dateB = new Date(b.created_at || b.date || "").getTime()
+                return sortOrder === "new" ? dateB - dateA : dateA - dateB
+              })
+              .slice((currentPage - 1) * schedulesPerPage, currentPage * schedulesPerPage)
+              .map((schedule) => (
+                <tr key={schedule.id}>
+                  <td className="px-4 py-2">{schedule.date || "-"}</td>
+                  <td className="px-4 py-2">
+                    {schedule.hour !== null && schedule.minute !== null
+                      ? `${String(schedule.hour).padStart(2, "0")}:${String(schedule.minute).padStart(2, "0")}`
+                      : "-"}
+                  </td>
+                  <td className="px-4 py-2">
+                    {schedule.recurring_days?.length > 0
+                      ? schedule.recurring_days.join(", ")
+                      : "-"}
+                  </td>
+                  <td className="px-4 py-2">{schedule.city || "-"}</td>
+                  <td className="px-4 py-2">{schedule.business_type || "-"}</td>
+                  <td className="px-4 py-2">{schedule.record_limit ?? "-"}</td>
+                  <td className="px-4 py-2">{schedule.skip_times ?? "-"}</td>
+                  <td className="px-4 py-2">
+                    <Button
+  variant={schedule.paused ? "default" : "secondary"}
+  size="sm"
+  onClick={() => handleTogglePause(schedule.id, schedule.paused)}
+  className="px-2 py-1 mr-2"
+>
+  {schedule.paused ? "Start" : "Pause"}
+</Button>
 
-      const totalLimit = batchGroup.reduce((sum, s) => sum + (s.record_limit || 0), 0)
-      const skipTimes = batchGroup.map((s) => s.skip_times).join(" - ")
-
-      return (
-        <tr key={schedule.id}>
-          <td className="px-4 py-2">{schedule.date || "-"}</td>
-          <td className="px-4 py-2">
-            {schedule.hour !== null && schedule.minute !== null
-              ? `${String(schedule.hour).padStart(2, "0")}:${String(schedule.minute).padStart(2, "0")}`
-              : "-"}
-          </td>
-          <td className="px-4 py-2">
-            {schedule.recurring_days?.length > 0
-              ? schedule.recurring_days.join(", ")
-              : "-"}
-          </td>
-          <td className="px-4 py-2">{schedule.city || "-"}</td>
-          <td className="px-4 py-2">{schedule.business_type || "-"}</td>
-          <td className="px-4 py-2">{totalLimit}</td>
-          <td className="px-4 py-2">{skipTimes}</td>
-          <td className="px-4 py-2">
-            <Button
-              variant={schedule.paused ? "default" : "secondary"}
-              size="sm"
-              onClick={() => handleTogglePause(schedule.id, schedule.paused)}
-              className="px-2 py-1 mr-2"
-            >
-              {schedule.paused ? "Start" : "Pause"}
-            </Button>
-
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => handleDeleteRecurring(schedule.id, schedule.source)}
-              className="px-2 py-1"
-            >
-              Delete
-            </Button>
-          </td>
-        </tr>
-      )
-    })}
-</tbody>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteRecurring(schedule.id, schedule.source)}
+                      className="px-2 py-1"
+                    >
+                      Delete
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
         </table>
       </div>
 
