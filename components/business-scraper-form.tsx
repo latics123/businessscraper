@@ -301,9 +301,12 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
       const isLastBatch = i === batchCount - 1
       const thisBatchLimit = isLastBatch ? totalLimit - batchSize * i : batchSize
 
+      const batchMinute = (minute + i * 2) % 60
+      const batchHour = (hour + Math.floor((minute + i * 2) / 60)) % 24
+
       newSchedules.push({
-        hour,
-        minute,
+        hour: batchHour,
+        minute: batchMinute,
         recurring_days: [fullDay],
         created_at: now.toISOString(),
         record_limit: thisBatchLimit,
@@ -322,7 +325,6 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         start_now: true,
         one_time: true,
         time_zone: formData.timeZone,
-
         instantly_api_key: formData.instantlyApiKey,
         instantly_list_id: formData.instantlyListId,
         instantly_campaign_id: formData.instantlyCampaignId,
@@ -415,9 +417,12 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
       const isLastBatch = i === batchCount - 1
       const thisBatchLimit = isLastBatch ? totalLimit - batchSize * i : batchSize
 
+      const batchMinute = (minute + i * 2) % 60
+      const batchHour = (hour + Math.floor((minute + i * 2) / 60)) % 24
+
       newSchedules.push({
-        hour,
-        minute,
+        hour: batchHour,
+        minute: batchMinute,
         recurring_days: [day],
         created_at: new Date().toISOString(),
         record_limit: thisBatchLimit,
@@ -434,7 +439,6 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         enrich_with_area_codes: formData.enrichWithAreaCodes,
         phone_filter: formData.phoneFilter,
         time_zone: formData.timeZone,
-
         instantly_api_key: formData.instantlyApiKey,
         instantly_list_id: formData.instantlyListId,
         instantly_campaign_id: formData.instantlyCampaignId,
@@ -476,6 +480,7 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
 
   fetchRecurringSchedules().then(setRecurringSchedules)
 }
+
 
 
 
