@@ -103,31 +103,28 @@ export function BusinessScraperForm() {
   const [hasData, setHasData] = useState(false)
 
   // Set isClient to true when component mounts (client-side only)
-useEffect(() => {
-  setIsClient(true)
+  useEffect(() => {
+    setIsClient(true)
 
-  const today = new Date().toISOString().split("T")[0]
-  setFormData((prev) => ({
-    ...prev,
-    fromDate: today,
-    toDate: today,
-  }))
+    const today = new Date().toISOString().split("T")[0]
+    setFormData((prev) => ({
+      ...prev,
+      fromDate: today,
+      toDate: today,
+    }))
 
-  const savedSettings = loadSettings()
-  if (savedSettings) {
-    setFormData((prev) => ({ ...prev, ...savedSettings }))
-  } else {
-    // 🕒 Detect browser time zone and set it
-    const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
-    setFormData((prev) => ({ ...prev, timeZone: browserTimeZone }))
-  }
+    const savedSettings = loadSettings()
+    if (savedSettings) {
+      setFormData((prev) => ({ ...prev, ...savedSettings }))
+    }
 
-  if (formData.enrichWithAreaCodes) {
-    loadEnrichAreaCodesFromURL()
-      .then(() => console.log("Enrich area codes loaded"))
-      .catch((err) => console.error("Failed to load area codes", err))
-  }
-}, [])
+    // 🔁 Load area codes automatically
+    if (formData.enrichWithAreaCodes) {
+      loadEnrichAreaCodesFromURL()
+        .then(() => console.log("Enrich area codes loaded"))
+        .catch((err) => console.error("Failed to load area codes", err))
+    }
+  }, [])
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => {
