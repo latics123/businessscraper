@@ -23,7 +23,7 @@ export function HelpDialog({ open, onOpenChange }: HelpDialogProps) {
             <TabsTrigger value="instantly">Instantly</TabsTrigger>
             <TabsTrigger value="verifier">Million Verifier</TabsTrigger>
             <TabsTrigger value="supabase">Supabase</TabsTrigger>
-            <TabsTrigger value="netlify">Netlify</TabsTrigger>
+            <TabsTrigger value="railway">Railway</TabsTrigger>
             <TabsTrigger value="scraping">Start Scraping</TabsTrigger>
           </TabsList>
           <TabsContent value="targetron">
@@ -516,7 +516,7 @@ CREATE TABLE public.settings (
     </div>
   </div>
 </TabsContent>
-<TabsContent value="netlify">
+<TabsContent value="railway">
 <div className="text-sm text-muted-foreground space-y-4">
   <div>
     <p className="font-semibold mb-1">🚄 Railway Setup & Debugging Guide</p>
