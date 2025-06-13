@@ -107,17 +107,22 @@ useEffect(() => {
   setIsClient(true)
 
   const today = new Date().toISOString().split("T")[0]
+  const browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
   setFormData((prev) => ({
     ...prev,
     fromDate: today,
     toDate: today,
-    timeZone: "Europe/London", // ✅ Force override timezone regardless of storage
+    timeZone: browserTimeZone, // ✅ Use detected system/browser timezone
   }))
 
   const savedSettings = loadSettings()
   if (savedSettings) {
-    const { timeZone: _ignored, ...rest } = savedSettings // 🚫 exclude any saved timezone
-    setFormData((prev) => ({ ...prev, ...rest, timeZone: "Europe/London" }))
+    setFormData((prev) => ({
+      ...prev,
+      ...savedSettings,
+      timeZone: savedSettings.timeZone || browserTimeZone, // ✅ Respect saved timezone or fallback to detected one
+    }))
   }
 
   if (formData.enrichWithAreaCodes) {
@@ -126,8 +131,6 @@ useEffect(() => {
       .catch((err) => console.error("Failed to load area codes", err))
   }
 }, [])
-
-
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => {
@@ -327,7 +330,7 @@ const handleAddRecurring = async ({ immediate = false } = {}) => {
         phone_filter: formData.phoneFilter,
         start_now: true,
         one_time: true,
-time_zone: "Europe/London",
+time_zone: formData.timeZone,
         instantly_api_key: formData.instantlyApiKey,
         instantly_list_id: formData.instantlyListId,
         instantly_campaign_id: formData.instantlyCampaignId,
@@ -441,7 +444,7 @@ time_zone: "Europe/London",
         without_phone: formData.phoneFilter === "without_phone",
         enrich_with_area_codes: formData.enrichWithAreaCodes,
         phone_filter: formData.phoneFilter,
-time_zone: "Europe/London",
+time_zone: formData.timeZone,
         instantly_api_key: formData.instantlyApiKey,
         instantly_list_id: formData.instantlyListId,
         instantly_campaign_id: formData.instantlyCampaignId,
@@ -590,6 +593,17 @@ async function handleEmailFileVerification(file: File) {
 
     {/* Group buttons on the right */}
     <div className="flex items-center gap-2">
+<Label htmlFor="timezone">Timezone</Label>
+<select
+  id="timezone"
+  value={formData.timeZone}
+  onChange={(e) => setFormData({ ...formData, timeZone: e.target.value })}
+  className="border rounded px-2 py-1 text-sm"
+>
+  {timezones.map(tz => (
+    <option key={tz} value={tz}>{tz}</option>
+  ))}
+</select>
 
       <Button
         variant="ghost"
