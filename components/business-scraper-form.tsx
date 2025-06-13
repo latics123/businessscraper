@@ -1139,81 +1139,59 @@ onCheckedChange={(checked) => {
               <th className="px-4 py-2 text-left font-medium">Actions</th>
             </tr>
           </thead>
-<tbody className="divide-y divide-gray-100">
-  {[
-    ...new Map(
-      recurringSchedules
-        .filter((s) => {
-          if (typeFilter === "recurring") return !s.one_time
-          if (typeFilter === "one-time") return s.one_time
-          return true
-        })
-        .sort((a, b) => {
-          const dateA = new Date(a.created_at || a.date || "").getTime()
-          const dateB = new Date(b.created_at || b.date || "").getTime()
-          return sortOrder === "new" ? dateB - dateA : dateA - dateB
-        })
-        .map((item) => [
-          `${item.city}_${item.business_type}_${item.created_at}_${item.time_zone}`,
-          item,
-        ])
-    ).values(),
-  ]
-    .slice((currentPage - 1) * schedulesPerPage, currentPage * schedulesPerPage)
-    .map((schedule) => {
-      const batchGroup = recurringSchedules.filter(
-        (s) =>
-          s.city === schedule.city &&
-          s.business_type === schedule.business_type &&
-          s.created_at === schedule.created_at &&
-          s.time_zone === schedule.time_zone
-      )
+          <tbody className="divide-y divide-gray-100">
+            {recurringSchedules
+              .filter((s) => {
+if (typeFilter === "recurring") return !s.one_time
+if (typeFilter === "one-time") return s.one_time
+                return true
+              })
+              .sort((a, b) => {
+                const dateA = new Date(a.created_at || a.date || "").getTime()
+                const dateB = new Date(b.created_at || b.date || "").getTime()
+                return sortOrder === "new" ? dateB - dateA : dateA - dateB
+              })
+              .slice((currentPage - 1) * schedulesPerPage, currentPage * schedulesPerPage)
+              .map((schedule) => (
+                <tr key={schedule.id}>
+                  <td className="px-4 py-2">{schedule.date || "-"}</td>
+                  <td className="px-4 py-2">
+                    {schedule.hour !== null && schedule.minute !== null
+                      ? `${String(schedule.hour).padStart(2, "0")}:${String(schedule.minute).padStart(2, "0")}`
+                      : "-"}
+                  </td>
+                  <td className="px-4 py-2">
+                    {schedule.recurring_days?.length > 0
+                      ? schedule.recurring_days.join(", ")
+                      : "-"}
+                  </td>
+                  <td className="px-4 py-2">{schedule.city || "-"}</td>
+                  <td className="px-4 py-2">{schedule.business_type || "-"}</td>
+                  <td className="px-4 py-2">{schedule.record_limit ?? "-"}</td>
+                  <td className="px-4 py-2">{schedule.skip_times ?? "-"}</td>
+                  <td className="px-4 py-2">
+                    <Button
+  variant={schedule.paused ? "default" : "secondary"}
+  size="sm"
+  onClick={() => handleTogglePause(schedule.id, schedule.paused)}
+  className="px-2 py-1 mr-2"
+>
+  {schedule.paused ? "Start" : "Pause"}
+</Button>
 
-      const totalLimit = batchGroup.reduce((sum, s) => sum + (s.record_limit || 0), 0)
-      const skipTimes = batchGroup.map((s) => s.skip_times).join(" - ")
-
-      return (
-        <tr key={schedule.id}>
-          <td className="px-4 py-2">{schedule.date || "-"}</td>
-          <td className="px-4 py-2">
-            {schedule.hour !== null && schedule.minute !== null
-              ? `${String(schedule.hour).padStart(2, "0")}:${String(schedule.minute).padStart(2, "0")}`
-              : "-"}
-          </td>
-          <td className="px-4 py-2">
-            {schedule.recurring_days?.length > 0
-              ? schedule.recurring_days.join(", ")
-              : "-"}
-          </td>
-          <td className="px-4 py-2">{schedule.city || "-"}</td>
-          <td className="px-4 py-2">{schedule.business_type || "-"}</td>
-          <td className="px-4 py-2">{totalLimit}</td>
-          <td className="px-4 py-2">{skipTimes}</td>
-          <td className="px-4 py-2">
-            <Button
-              variant={schedule.paused ? "default" : "secondary"}
-              size="sm"
-              onClick={() => handleTogglePause(schedule.id, schedule.paused)}
-              className="px-2 py-1 mr-2"
-            >
-              {schedule.paused ? "Start" : "Pause"}
-            </Button>
-
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => handleDeleteRecurring(schedule.id, schedule.source)}
-              className="px-2 py-1"
-            >
-              Delete
-            </Button>
-          </td>
-        </tr>
-      )
-    })}
-</tbody>
-
-     </table>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteRecurring(schedule.id, schedule.source)}
+                      className="px-2 py-1"
+                    >
+                      Delete
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
       </div>
 
       {/* Pagination */}
